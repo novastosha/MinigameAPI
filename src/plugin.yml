@@ -1,0 +1,11 @@
+main: dev.nova.gameapi.GAPIPlugin
+version: 1.0
+name: GameAPI
+startup: postworld
+commands:
+  queue:
+    description: Queues a player in a game!
+  setOption:
+    description: Sets an option of a map.
+  map:
+    description: Edits a map.

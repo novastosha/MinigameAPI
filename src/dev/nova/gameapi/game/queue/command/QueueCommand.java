@@ -26,6 +26,11 @@ public class QueueCommand implements CommandExecutor {
         }
 
         if(args.length == 1){
+            player.sendMessage("§cPlease type an instance name!");
+            return true;
+        }
+
+        if(args.length == 2){
             GameBase game = GameManager.getGame(args[0]);
 
             if(game == null){
@@ -33,17 +38,20 @@ public class QueueCommand implements CommandExecutor {
                 return true;
             }
 
+            if(!game.instanceExists(args[1])){
+                player.sendMessage("§cNo mode exists with name: "+args[1]);
+            }
 
             Queue queue;
 
             try{
                 queue = Queue.getQueues(game,1)[0];
             }catch (ArrayIndexOutOfBoundsException e){
-                queue = new Queue(game,game.random());
+                queue = new Queue(args[1],game,game.random());
             }
 
             if(queue == null){
-                queue = new Queue(game,game.random());
+                queue = new Queue(args[1],game,game.random());
             }
 
             player.sendMessage("§aYou have been queued in a queue with id: §7"+queue.getId());

@@ -20,7 +20,7 @@ public class GameValueBoolean extends GameValue<Boolean>{
 
 
     @Override
-    public boolean autoSetValue() {
+    public Boolean autoSetValue() {
         setValue(!getValue());
         super.autoSetValue();
         return true;

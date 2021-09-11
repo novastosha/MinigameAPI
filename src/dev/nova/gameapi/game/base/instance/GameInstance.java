@@ -9,6 +9,7 @@ import dev.nova.gameapi.game.map.GameMap;
 import dev.nova.gameapi.game.map.MapInjection;
 import dev.nova.gameapi.game.player.GamePlayer;
 import org.bukkit.ChatColor;
+import org.bukkit.event.Event;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -33,6 +34,8 @@ public abstract class GameInstance {
     private final GameUtils utils;
     private final String[] description;
     private final String brief;
+    private final String displayName;
+
     private Scoreboard scoreboard;
 
     private GameState gameState;
@@ -44,8 +47,9 @@ public abstract class GameInstance {
      * 
      * @param map The map the players are going to play in.
      */
-    public GameInstance(@Nonnull String gameBase, GameMap map,String[] gameDescription, String gameBrief) {
+    public GameInstance(String displayName,@Nonnull String gameBase, GameMap map,String[] gameDescription, String gameBrief) {
         this.gameBase = GameManager.getGame(gameBase);
+        this.displayName = displayName;
         this.description =gameDescription;
         this.brief = gameBrief;
         this.gameID = this.gameBase.getRunningInstances().size() +1;
@@ -67,6 +71,10 @@ public abstract class GameInstance {
         for(GamePlayer player : players){
             getScoreboard().addPlayer(player);
         }
+    }
+
+    public String getDisplayName() {
+        return displayName;
     }
 
     public String getBrief() {
@@ -219,4 +227,6 @@ public abstract class GameInstance {
         }
 
     }
+
+    public void onEvent(Event event){}
 }

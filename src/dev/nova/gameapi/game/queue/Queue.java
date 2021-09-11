@@ -19,13 +19,15 @@ public class Queue {
     private final ArrayList<GamePlayer> playersQueued;
     private final GameMap map;
     private final int id;
+    private final String instanceName;
     private GameInstance instance;
     private boolean started;
     private int coolDownTicks;
 
-    public Queue(GameBase game, GameMap map){
+    public Queue(String instance,GameBase game, GameMap map){
         this.game = game;
         this.map = map;
+        this.instanceName = instance;
         this.id = OPEN_QUEUES.size()+1;
         this.playersQueued = new ArrayList<GamePlayer>();
         OPEN_QUEUES.add(this);
@@ -131,7 +133,7 @@ public class Queue {
 
             if(coolDownTicks == 1 * 20L) {
                 if (instance == null) {
-                    this.instance = game.newInstance(map);
+                    this.instance = game.newInstance(instanceName,map);
                     for(GamePlayer player : playersQueued){
                         instance.join(player);
                     }

@@ -8,7 +8,6 @@ import dev.nova.gameapi.game.logger.GameLogger;
 import dev.nova.gameapi.game.logger.LogLevel;
 import dev.nova.gameapi.game.player.GamePlayer;
 import org.bukkit.ChatColor;
-import org.bukkit.entity.Player;
 
 import javax.annotation.Nullable;
 import javax.annotation.OverridingMethodsMustInvokeSuper;
@@ -22,13 +21,13 @@ public abstract class GameBase {
 
     private final String displayName;
     private final String codeName;
-    private final ArrayList<GameInstance> runningInstances;
+    private final Map<String,ArrayList<GameInstance>> runningInstances;
     private final ArrayList<GameMap> gameMaps;
     private final ChatColor gameTheme;
     private final Map<String,Class<? extends GameInstance>> instances;
 
     public GameBase(String codeName, String displayName, Class<? extends GameInstance>[] gameInstances, ChatColor gameTheme){
-        this.runningInstances = new ArrayList<>();
+        this.runningInstances = new HashMap<>();
         this.codeName = codeName;
         this.displayName = displayName;
         this.gameMaps = new ArrayList<>();
@@ -78,7 +77,7 @@ public abstract class GameBase {
         return codeName;
     }
 
-    public ArrayList<GameInstance> getRunningInstances(){
+    public Map<String, ArrayList<GameInstance>> getRunningInstances(){
         return this.runningInstances;
     }
 
@@ -121,17 +120,27 @@ public abstract class GameBase {
 
             if(!instanceClass.isAssignableFrom(TeamGameInstance.class)) {
                 GameInstance instance = instanceClass.getConstructor(String.class, GameMap.class).newInstance(this.getCodeName(), map);
-                runningInstances.add(instance);
+
+                ArrayList<GameInstance> instances = runningInstances.get(codeName) == null ? new ArrayList<>() : runningInstances.get(codeName);
+                instances.add(instance);
+
+                runningInstances.put(codeName,instances);
 
                 for (GamePlayer player : initPlayers) {
                     instance.join(player);
                 }
 
+
+
                 GameLogger.log(new GameLog(this, LogLevel.INFO, "Created new instance of game: " + getCodeName() + " with id: " + instance.getGameID(), true));
                 return instance;
             }else{
                 GameInstance instance = instanceClass.getConstructor(String.class, GameMap.class).newInstance(this.getCodeName(), map);
-                runningInstances.add(instance);
+
+                ArrayList<GameInstance> instances = runningInstances.get(codeName) == null ? new ArrayList<>() : runningInstances.get(codeName);
+                instances.add(instance);
+
+                runningInstances.put(codeName,instances);
 
                 for (GamePlayer player : initPlayers) {
                     instance.join(player);

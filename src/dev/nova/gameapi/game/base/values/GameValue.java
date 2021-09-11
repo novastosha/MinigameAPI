@@ -25,7 +25,7 @@ public abstract class GameValue<T> {
         return displayName;
     }
 
-    public T getValue() {
+    public T getValue(){
         return value;
     }
 
@@ -36,9 +36,9 @@ public abstract class GameValue<T> {
     }
 
     @OverridingMethodsMustInvokeSuper
-    public boolean autoSetValue(){
+    public T autoSetValue(){
         instance.onValueUpdate(this);
-        return true;
+        return value;
     }
 
 }

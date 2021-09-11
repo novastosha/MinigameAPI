@@ -5,6 +5,8 @@ import dev.nova.gameapi.game.base.instance.GameInstance;
 import dev.nova.gameapi.game.base.scoreboard.Scoreboard;
 import dev.nova.gameapi.game.manager.GameManager;
 
+import java.util.ArrayList;
+
 public class ScoreboardTicker implements Runnable {
     
     private static ScoreboardTicker instance;
@@ -21,13 +23,16 @@ public class ScoreboardTicker implements Runnable {
     @Override
     public void run() {
         for(GameBase game : GameManager.GAMES){
-            for(GameInstance instance : game.getRunningInstances()){
-                Scoreboard scoreboard = instance.getScoreboard();
+            for(ArrayList<GameInstance> instances : game.getRunningInstances().values()) {
 
-                if(scoreboard != null) {
-                    if (scoreboard.getCycleColor() != null &&
-                            scoreboard.getCyclePassedColor() != null) {
-                        scoreboard.cycle();
+                for (GameInstance instance : instances) {
+                    Scoreboard scoreboard = instance.getScoreboard();
+
+                    if (scoreboard != null) {
+                        if (scoreboard.getCycleColor() != null &&
+                                scoreboard.getCyclePassedColor() != null) {
+                            scoreboard.cycle();
+                        }
                     }
                 }
             }

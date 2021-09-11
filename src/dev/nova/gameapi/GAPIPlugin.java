@@ -24,6 +24,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import java.util.List;
 
 public class GAPIPlugin extends JavaPlugin {
@@ -72,50 +73,51 @@ public class GAPIPlugin extends JavaPlugin {
 
 
                 for(GameBase base : GameManager.GAMES){
-                    for(GameInstance instance : base.getRunningInstances()){
+                    for(ArrayList<GameInstance> instances : base.getRunningInstances().values()) {
 
+                        for (GameInstance instance : instances) {
+                            if (event instanceof PlayerDeathEvent) {
+                                PlayerDeathEvent deathEvent = (PlayerDeathEvent) event;
 
-                        if(event instanceof PlayerDeathEvent){
-                            PlayerDeathEvent deathEvent = (PlayerDeathEvent) event;
+                                GamePlayer victim = GamePlayer.getPlayer(deathEvent.getEntity());
+                                GamePlayer killer = GamePlayer.getPlayer(deathEvent.getEntity().getKiller());
 
-                            GamePlayer victim = GamePlayer.getPlayer(deathEvent.getEntity());
-                            GamePlayer killer = GamePlayer.getPlayer(deathEvent.getEntity().getKiller());
+                                if (instance.getPlayers().contains(victim) && instance.getPlayers().contains(killer)) {
+                                    instance.onEvent(event);
+                                }
+                            }
 
-                            if(instance.getPlayers().contains(victim) && instance.getPlayers().contains(killer)){
+                            try {
+                                World world = (World) event.getClass().getMethod("getWorld").invoke(event);
+
+                                if (world != null) {
+                                    if (instance.getMap() != null && world == instance.getMap().getBukkitWorld()) {
+                                        instance.onEvent(event);
+                                        continue;
+                                    }
+                                }
+                                Player player = (Player) event.getClass().getMethod("getPlayer").invoke(event);
+
+                                if (player != null) {
+                                    GamePlayer gamePlayer = GamePlayer.getPlayer(player);
+
+                                    if (instance.getPlayers().contains(gamePlayer)) {
+                                        instance.onEvent(event);
+                                        continue;
+                                    }
+                                }
+
+                                Entity entity = (Entity) event.getClass().getMethod("getEntity").invoke(event);
+
+                                if (entity != null) {
+                                    if (instance.getMap() != null && instance.getMap().getBukkitWorld().getEntities().contains(entity)) {
+                                        instance.onEvent(event);
+                                        continue;
+                                    }
+                                }
+                            } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException ignored) {
                                 instance.onEvent(event);
                             }
-                        }
-
-                        try {
-                            World world = (World) event.getClass().getMethod("getWorld").invoke(event);
-
-                            if(world != null) {
-                                if (instance.getMap() != null && world == instance.getMap().getBukkitWorld()) {
-                                    instance.onEvent(event);
-                                    continue;
-                                }
-                            }
-                            Player player = (Player) event.getClass().getMethod("getPlayer").invoke(event);
-
-                            if(player != null) {
-                                GamePlayer gamePlayer = GamePlayer.getPlayer(player);
-
-                                if(instance.getPlayers().contains(gamePlayer)){
-                                    instance.onEvent(event);
-                                    continue;
-                                }
-                            }
-
-                            Entity entity = (Entity) event.getClass().getMethod("getEntity").invoke(event);
-
-                            if(entity != null){
-                                if(instance.getMap() != null && instance.getMap().getBukkitWorld().getEntities().contains(entity)){
-                                    instance.onEvent(event);
-                                    continue;
-                                }
-                            }
-                        } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException ignored) {
-                            instance.onEvent(event);
                         }
                     }
                 }

@@ -39,7 +39,8 @@ public abstract class GameInstance {
     private Scoreboard scoreboard;
 
     private GameState gameState;
-    private boolean canStart = true;
+    protected boolean canStart = true;
+    private boolean ended = false;
 
     /**
      *
@@ -101,6 +102,10 @@ public abstract class GameInstance {
         return players;
     }
 
+    public boolean hasEnded(){
+        return ended;
+    }
+
     /**
      *
      * Called when a player joins the game.
@@ -142,10 +147,13 @@ public abstract class GameInstance {
 
     @OverridingMethodsMustInvokeSuper
     public void onEnd(){
-        this.gameState = GameState.ENDED;
-        if(gameMap != null){
-            for(MapInjection injection : map.getCustomInjections()){
-                injection.onEnd();
+        if(!ended) {
+            this.gameState = GameState.ENDED;
+            this.ended = true;
+            if (gameMap != null) {
+                for (MapInjection injection : map.getCustomInjections()) {
+                    injection.onEnd();
+                }
             }
         }
     }

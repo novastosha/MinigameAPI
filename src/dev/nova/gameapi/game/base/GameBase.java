@@ -82,7 +82,7 @@ public abstract class GameBase {
     }
 
     public boolean instanceExists(String instanceCodeName){
-        Class<? extends GameInstance> instanceClass = instances.get(codeName);
+        Class<? extends GameInstance> instanceClass = instances.get(instanceCodeName);
 
         return instanceClass != null;
     }
@@ -114,43 +114,33 @@ public abstract class GameBase {
         try {
             Class<? extends GameInstance> instanceClass = instances.get(codeName);
 
-            if(instanceClass == null){
+            try {
+
+                if (instanceClass == null) {
+                    return null;
+                }
+
+                GameInstance instance = instanceClass.getConstructor(String.class, GameMap.class).newInstance(this.getCodeName(), map);
+
+                ArrayList<GameInstance> instances = runningInstances.get(codeName) == null ? new ArrayList<>() : runningInstances.get(codeName);
+                instances.add(instance);
+
+                runningInstances.put(codeName, instances);
+
+                for (GamePlayer player : initPlayers) {
+                    instance.join(player);
+                }
+
+
+                GameLogger.log(new GameLog(this, LogLevel.INFO, "Created new instance of game: " + getCodeName() + " with id: " + instance.getGameID(), true));
+                return instance;
+            } catch (InvocationTargetException | InstantiationException | IllegalAccessException | NoSuchMethodException e) {
+                GameLogger.log(new GameLog(this, LogLevel.ERROR, "Unable to create instance! " + e.getClass().getSimpleName(), true));
+                e.printStackTrace();
                 return null;
             }
-
-            if(!instanceClass.isAssignableFrom(TeamGameInstance.class)) {
-                GameInstance instance = instanceClass.getConstructor(String.class, GameMap.class).newInstance(this.getCodeName(), map);
-
-                ArrayList<GameInstance> instances = runningInstances.get(codeName) == null ? new ArrayList<>() : runningInstances.get(codeName);
-                instances.add(instance);
-
-                runningInstances.put(codeName,instances);
-
-                for (GamePlayer player : initPlayers) {
-                    instance.join(player);
-                }
-
-
-
-                GameLogger.log(new GameLog(this, LogLevel.INFO, "Created new instance of game: " + getCodeName() + " with id: " + instance.getGameID(), true));
-                return instance;
-            }else{
-                GameInstance instance = instanceClass.getConstructor(String.class, GameMap.class).newInstance(this.getCodeName(), map);
-
-                ArrayList<GameInstance> instances = runningInstances.get(codeName) == null ? new ArrayList<>() : runningInstances.get(codeName);
-                instances.add(instance);
-
-                runningInstances.put(codeName,instances);
-
-                for (GamePlayer player : initPlayers) {
-                    instance.join(player);
-                }
-
-                GameLogger.log(new GameLog(this, LogLevel.INFO, "Created new instance of game: " + getCodeName() + " with id: " + instance.getGameID(), true));
-                return instance;
-            }
-        } catch (NoSuchMethodException | InvocationTargetException | InstantiationException | IllegalAccessException e) {
-            GameLogger.log(new GameLog(this, LogLevel.ERROR,"Unable to create instance! "+e.getClass().getSimpleName(),true));
+        }catch (Exception e){
+            GameLogger.log(new GameLog(this, LogLevel.ERROR, "Unable to create instance! " + e.getClass().getSimpleName(), true));
             e.printStackTrace();
             return null;
         }

@@ -40,6 +40,7 @@ public class QueueCommand implements CommandExecutor {
 
             if(!game.instanceExists(args[1])){
                 player.sendMessage("§cNo mode exists with name: "+args[1]);
+                return true;
             }
 
             Queue queue;

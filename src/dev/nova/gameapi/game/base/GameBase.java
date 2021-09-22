@@ -1,13 +1,13 @@
 package dev.nova.gameapi.game.base;
 
 import dev.nova.gameapi.game.base.instance.GameInstance;
-import dev.nova.gameapi.game.base.instance.team.TeamGameInstance;
 import dev.nova.gameapi.game.map.GameMap;
 import dev.nova.gameapi.game.logger.GameLog;
 import dev.nova.gameapi.game.logger.GameLogger;
 import dev.nova.gameapi.game.logger.LogLevel;
 import dev.nova.gameapi.game.player.GamePlayer;
 import org.bukkit.ChatColor;
+import org.bukkit.plugin.Plugin;
 
 import javax.annotation.Nullable;
 import javax.annotation.OverridingMethodsMustInvokeSuper;
@@ -25,17 +25,22 @@ public abstract class GameBase {
     private final ArrayList<GameMap> gameMaps;
     private final ChatColor gameTheme;
     private final Map<String,Class<? extends GameInstance>> instances;
+    private final Plugin plugin;
 
-    public GameBase(String codeName, String displayName, Class<? extends GameInstance>[] gameInstances, ChatColor gameTheme){
+    public GameBase(Plugin plugin, String codeName, String displayName, Class<? extends GameInstance>[] gameInstances, ChatColor gameTheme){
         this.runningInstances = new HashMap<>();
         this.codeName = codeName;
+        this.plugin = plugin;
+        if(!plugin.isEnabled()){
+            throw new IllegalStateException("Plugin is disabled!");
+        }
         this.displayName = displayName;
         this.gameMaps = new ArrayList<>();
         this.gameTheme = gameTheme;
         this.instances = new HashMap<>();
 
         for(Class<? extends GameInstance> instance : gameInstances){
-            String code = checkValidation(instance);
+            String code = getCode(instance);
             if(code != null){
                 instances.put(code,instance);
                 GameLogger.log(new GameLog(this,LogLevel.INFO,"Added game instance: "+code+" to the game!",true));
@@ -45,11 +50,15 @@ public abstract class GameBase {
         }
     }
 
+    public Plugin getPlugin() {
+        return plugin;
+    }
+
     public Map<String, Class<? extends GameInstance>> getInstances() {
         return instances;
     }
 
-    private String checkValidation(Class<? extends GameInstance> instance) {
+    public String getCode(Class<? extends GameInstance> instance) {
 
             try {
                 Field field = instance.getField("code");
@@ -110,7 +119,7 @@ public abstract class GameBase {
      * @return A new game instance.
      */
     @OverridingMethodsMustInvokeSuper
-    public GameInstance newInstance(String codeName,@Nullable GameMap map, GamePlayer... initPlayers) {
+    public GameInstance newInstance(String codeName, @Nullable GameMap map, GamePlayer... initPlayers) {
         try {
             Class<? extends GameInstance> instanceClass = instances.get(codeName);
 

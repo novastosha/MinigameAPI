@@ -19,4 +19,4 @@ Contributions are so welcome, Just create a pull request and add whatever you wa
 
 # License
 
-Licensed under
+Licensed under tbe MIT License.

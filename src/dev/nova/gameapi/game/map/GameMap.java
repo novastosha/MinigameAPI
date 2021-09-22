@@ -182,8 +182,9 @@ public class GameMap {
             return bukkitWorld;
         }
 
-        public GameOption loadOption(String key,OptionType type,Map map){
+        public GameOption loadOption(String key,OptionType type,Map map,boolean required){
             this.base.updateRawData();
+            GameOption option = null;
             if(this.base.rawData.getConfigurationSection("options") != null){
                 System.out.println("updating options "+map.getBukkitWorld().getName());
                 ConfigurationSection options = this.base.rawData.getConfigurationSection("options");
@@ -203,16 +204,19 @@ public class GameMap {
                 }
 
                 if(!optionType.equals(type)){
-                    System.out.println("ok");
                     return null;
                 }
 
-                GameOption option = new GameOption(key,optionType,optionConfig.get("value"),map);
+                option = new GameOption(key,optionType,optionConfig.get("value"),map);
                 this.options.add(option);
-                return option;
+            }
+            if(option == null && required){
+                Bukkit.getServer().getConsoleSender().sendMessage("§7[§bGameAPI§7] Missing option: §b"+key);
+                gameInstance.getUtils().sendMessage("§cSorry, an unexpected error happened!");
+                gameInstance.postEnd();
             }
 
-            return null;
+            return option;
         }
 
         private World cloneWorld() throws UnableToCloneException{

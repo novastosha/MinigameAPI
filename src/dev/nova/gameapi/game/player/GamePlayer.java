@@ -1,8 +1,8 @@
 package dev.nova.gameapi.game.player;
 
+import dev.nova.gameapi.game.base.GameBase;
 import dev.nova.gameapi.game.base.instance.GameInstance;
 import dev.nova.gameapi.utils.Files;
-import io.netty.channel.group.DefaultChannelGroup;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -94,5 +94,18 @@ public class GamePlayer {
         } catch (UnableToLoadGamePlayerExeption e) {
             return null;
         }
+    }
+
+    public void setValue(GameBase gameBase,Class<? extends GameInstance> base, String path, Object value){
+        yamlConfiguartion.set(gameBase.getCodeName()+"."+gameBase.getCode(base)+"."+path,value);
+        try {
+            saveConfiguration();
+        } catch (UnableToSaveGamePlayerConfig e) {
+            e.printStackTrace();
+        }
+    }
+
+    public Object getValue(GameBase gameBase,Class<? extends GameInstance> base, String path){
+        return yamlConfiguartion.get(gameBase.getCodeName()+"."+gameBase.getCode(base)+"."+path);
     }
 }

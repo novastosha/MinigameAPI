@@ -1,3 +1,8 @@
+/**
+ *
+ * Copyright (c) 2021 novastosha
+ *
+ */
 package dev.nova.gameapi;
 
 import dev.nova.gameapi.game.base.GameBase;

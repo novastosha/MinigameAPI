@@ -27,17 +27,16 @@ import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.event.world.ChunkUnloadEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
-import java.util.List;
 
 public class GAPIPlugin extends JavaPlugin {
 
     private GlobalListener listener;
 
     @Override
-    @SuppressWarnings("unchecked")
     public void onEnable() {
 
 
@@ -87,8 +86,14 @@ public class GAPIPlugin extends JavaPlugin {
                                 GamePlayer victim = GamePlayer.getPlayer(deathEvent.getEntity());
                                 GamePlayer killer = GamePlayer.getPlayer(deathEvent.getEntity().getKiller());
 
-                                if (instance.getPlayers().contains(victim) && instance.getPlayers().contains(killer)) {
-                                    instance.onEvent(event);
+                                if(killer == null) {
+                                    if (instance.getPlayers().contains(victim)) {
+                                        instance.onEvent(event);
+                                    }
+                                }else{
+                                    if(instance.getPlayers().contains(victim) && instance.getPlayers().contains(killer)){
+                                        instance.onEvent(event);
+                                    }
                                 }
                             }
 
@@ -115,9 +120,16 @@ public class GAPIPlugin extends JavaPlugin {
                                 Entity entity = (Entity) event.getClass().getMethod("getEntity").invoke(event);
 
                                 if (entity != null) {
-                                    if (instance.getMap() != null && instance.getMap().getBukkitWorld().getEntities().contains(entity)) {
-                                        instance.onEvent(event);
-                                        continue;
+                                    if(!(entity instanceof Player)) {
+                                        if (instance.getMap() != null && instance.getMap().getBukkitWorld().getEntities().contains(entity)) {
+                                            instance.onEvent(event);
+                                            continue;
+                                        }
+                                    }else{
+                                        GamePlayer player1 = GamePlayer.getPlayer((Player) entity);
+                                        if(instance.getPlayers().contains(player1)){
+                                            instance.onEvent(event);
+                                        }
                                     }
                                 }
                             } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException ignored) {
@@ -130,8 +142,38 @@ public class GAPIPlugin extends JavaPlugin {
         };
     }
 
+    private boolean deleteWorld(File path) {
+        if(path.exists()) {
+            File files[] = path.listFiles();
+            for(int i=0; i<files.length; i++) {
+                if(files[i].isDirectory()) {
+                    deleteWorld(files[i]);
+                } else {
+                    files[i].delete();
+                }
+            }
+        }
+        return(path.delete());
+    }
+
     @Override
     public void onDisable() {
         Bukkit.getServer().getScheduler().cancelTasks(this);
+        for(GameBase base : GameManager.GAMES){
+            for(ArrayList<GameInstance> instances : base.getRunningInstances().values()){
+                for(GameInstance instance : instances){
+                    if(instance.getMap() != null){
+                        if(instance.getMap().getBukkitWorld().getPlayers().size() != 0){
+                            for(Player player : instance.getMap().getBukkitWorld().getPlayers()){
+                                player.kickPlayer("§cGameAPI shutting down");
+                                //Move to fallback server...
+                            }
+                            Bukkit.unloadWorld(instance.getMap().getBukkitWorld(),false);
+                            deleteWorld(instance.getMap().getBukkitWorld().getWorldFolder());
+                        }
+                    }
+                }
+            }
+        }
     }
 }

@@ -31,9 +31,6 @@ public abstract class GameBase {
         this.runningInstances = new HashMap<>();
         this.codeName = codeName;
         this.plugin = plugin;
-        if(!plugin.isEnabled()){
-            throw new IllegalStateException("Plugin is disabled!");
-        }
         this.displayName = displayName;
         this.gameMaps = new ArrayList<>();
         this.gameTheme = gameTheme;
@@ -159,5 +156,9 @@ public abstract class GameBase {
         gameMaps.add(map);
     }
 
+    public void removeInstance(GameInstance gameInstance) {
+        ArrayList<GameInstance> instances = getRunningInstances().get(getCode(gameInstance.getClass()));
+        instances.remove(gameInstance);
+    }
 }
 

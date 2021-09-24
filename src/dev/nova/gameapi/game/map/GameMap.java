@@ -8,6 +8,7 @@ import dev.nova.gameapi.game.logger.LogLevel;
 import dev.nova.gameapi.game.map.options.GameOption;
 import dev.nova.gameapi.game.map.options.OptionType;
 import org.bukkit.Bukkit;
+import org.bukkit.Difficulty;
 import org.bukkit.World;
 import org.bukkit.WorldCreator;
 import org.bukkit.configuration.ConfigurationSection;
@@ -182,11 +183,10 @@ public class GameMap {
             return bukkitWorld;
         }
 
-        public GameOption loadOption(String key,OptionType type,Map map,boolean required){
+        public GameOption loadOption(String key,OptionType type,boolean required){
             this.base.updateRawData();
             GameOption option = null;
             if(this.base.rawData.getConfigurationSection("options") != null){
-                System.out.println("updating options "+map.getBukkitWorld().getName());
                 ConfigurationSection options = this.base.rawData.getConfigurationSection("options");
 
                 ConfigurationSection optionConfig = options.getConfigurationSection(key);
@@ -207,7 +207,7 @@ public class GameMap {
                     return null;
                 }
 
-                option = new GameOption(key,optionType,optionConfig.get("value"),map);
+                option = new GameOption(key,optionType,optionConfig.get("value"),this);
                 this.options.add(option);
             }
             if(option == null && required){
@@ -236,8 +236,11 @@ public class GameMap {
 
             World newWorld = new WorldCreator(base.gameBase.getCodeName()+"-"+gameInstance.getGameID()+"-"+base.getCodeName()).createWorld();
 
-            System.out.println(newWorld.getName());
             newWorld.setAutoSave(false);
+            newWorld.setGameRuleValue("doDaylightCycle", "false");
+            newWorld.setGameRuleValue("doWeatherCycle", "false");
+            newWorld.setDifficulty(Difficulty.EASY);
+            newWorld.setTime(1000);
 
             return newWorld;
         }

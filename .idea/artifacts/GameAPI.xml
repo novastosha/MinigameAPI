@@ -1,6 +1,6 @@
 <component name="ArtifactManager">
   <artifact type="jar" name="GameAPI">
-    <output-path>$USER_HOME$/Minecraft For Java/plugins</output-path>
+    <output-path>$USER_HOME$/Minecraft For Java 1.16.5/plugins</output-path>
     <root id="archive" name="GameAPI.jar">
       <element id="module-output" name="GameAPI" />
     </root>

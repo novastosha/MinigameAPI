@@ -135,7 +135,6 @@ public final class GameManager {
             }
 
         }catch(Exception ignored){
-            ignored.printStackTrace();
         }
     }
 
@@ -143,7 +142,6 @@ public final class GameManager {
         for(GameBase base : GAMES){
             if(base.getCodeName().equals(name)) return base;
         }
-        System.out.println(name);
         return null;
     }
 }

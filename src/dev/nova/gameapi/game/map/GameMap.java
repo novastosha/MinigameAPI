@@ -81,8 +81,6 @@ public class GameMap {
         return displayName;
     }
 
-
-
     private void updateRawData() {
         YamlConfiguration configuration = new YamlConfiguration();
         try{
@@ -110,7 +108,7 @@ public class GameMap {
             maps.add(map);
 
             if(rawData.getList("injections") != null) {
-                for (String injectionClassPath : (List<String>) rawData.getList("injections")) {
+                for (String injectionClassPath : rawData.getStringList("injections")) {
                     Class<? extends MapInjection> injectionClass = null;
                     try {
                         injectionClass = (Class<? extends MapInjection>) Class.forName(injectionClassPath);
@@ -234,18 +232,23 @@ public class GameMap {
             copyFileStructure(base.world.getWorldFolder(), copiedFile);
             GameLogger.log(new GameLog(base.gameBase, LogLevel.INFO,"Clone completed successfully.",true));
 
-            World newWorld = new WorldCreator(base.gameBase.getCodeName()+"-"+gameInstance.getGameID()+"-"+base.getCodeName()).createWorld();
+            WorldCreator creator = new WorldCreator(base.gameBase.getCodeName()+"-"+gameInstance.getGameID()+"-"+base.getCodeName());
+            World newWorld = creator.createWorld();
 
             newWorld.setAutoSave(false);
             newWorld.setGameRuleValue("doDaylightCycle", "false");
             newWorld.setGameRuleValue("doWeatherCycle", "false");
             newWorld.setDifficulty(Difficulty.EASY);
             newWorld.setTime(1000);
+            newWorld.setGameRuleValue("announceAdvancements","false");
+            newWorld.setThundering(false);
+            newWorld.setStorm(false);
+            newWorld.setWeatherDuration(-1);
 
             return newWorld;
         }
 
-        private boolean deleteWorld(File path) {
+        public boolean deleteWorld(File path) {
             if(path.exists()) {
                 File files[] = path.listFiles();
                 for(int i=0; i<files.length; i++) {

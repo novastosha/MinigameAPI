@@ -44,7 +44,7 @@ public class GameOption {
 
     public Location getAsLocation(){
         Location location = (Location) value;
-        System.out.println(map.getBukkitWorld().getName());
+
         return new Location(
                 map.getBukkitWorld(),
                 location.getX(),

@@ -21,13 +21,13 @@ public abstract class GameBase {
 
     private final String displayName;
     private final String codeName;
-    private final Map<String,ArrayList<GameInstance>> runningInstances;
+    private final Map<String, ArrayList<GameInstance>> runningInstances;
     private final ArrayList<GameMap> gameMaps;
     private final ChatColor gameTheme;
-    private final Map<String,Class<? extends GameInstance>> instances;
+    private final Map<String, Class<? extends GameInstance>> instances;
     private final Plugin plugin;
 
-    public GameBase(Plugin plugin, String codeName, String displayName, Class<? extends GameInstance>[] gameInstances, ChatColor gameTheme){
+    public GameBase(Plugin plugin, String codeName, String displayName, Class<? extends GameInstance>[] gameInstances, ChatColor gameTheme) {
         this.runningInstances = new HashMap<>();
         this.codeName = codeName;
         this.plugin = plugin;
@@ -36,14 +36,14 @@ public abstract class GameBase {
         this.gameTheme = gameTheme;
         this.instances = new HashMap<>();
 
-        for(Class<? extends GameInstance> instance : gameInstances){
+        for (Class<? extends GameInstance> instance : gameInstances) {
             String code = getCode(instance);
-            if(code != null){
-                instances.put(code,instance);
-                GameLogger.log(new GameLog(this,LogLevel.INFO,"Added game instance: "+code+" to the game!",true));
+            if (code != null) {
+                instances.put(code, instance);
+                GameLogger.log(new GameLog(this, LogLevel.INFO, "Added game instance: " + code + " to the game!", true));
                 continue;
             }
-            GameLogger.log(new GameLog(this,LogLevel.ERROR,"Unable to load game instance: "+instance.getSimpleName()+" as it does not contain a public static final String field named 'code'",true));
+            GameLogger.log(new GameLog(this, LogLevel.ERROR, "Unable to load game instance: " + instance.getSimpleName() + " as it does not contain a public static final String field named 'code'", true));
         }
     }
 
@@ -57,14 +57,14 @@ public abstract class GameBase {
 
     public String getCode(Class<? extends GameInstance> instance) {
 
-            try {
-                Field field = instance.getField("code");
+        try {
+            Field field = instance.getField("code");
 
-                field.setAccessible(true);
-                return (String) field.get(null);
-            } catch (NoSuchFieldException | IllegalAccessException e) {
-                return null;
-            }
+            field.setAccessible(true);
+            return (String) field.get(null);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            return null;
+        }
     }
 
     public ChatColor getGameTheme() {
@@ -83,35 +83,33 @@ public abstract class GameBase {
         return codeName;
     }
 
-    public Map<String, ArrayList<GameInstance>> getRunningInstances(){
+    public Map<String, ArrayList<GameInstance>> getRunningInstances() {
         return this.runningInstances;
     }
 
-    public boolean instanceExists(String instanceCodeName){
+    public boolean instanceExists(String instanceCodeName) {
         Class<? extends GameInstance> instanceClass = instances.get(instanceCodeName);
 
         return instanceClass != null;
     }
 
     /**
-     *
      * @param mapName The name of the map to search for.
      * @return The map with the according name. (can be null if none found)
      */
     @Nullable
     public GameMap getMap(String mapName) {
-        for(GameMap map : gameMaps){
-            if(map.getCodeName().equalsIgnoreCase(mapName)) return map;
+        for (GameMap map : gameMaps) {
+            if (map.getCodeName().equalsIgnoreCase(mapName)) return map;
         }
         return null;
     }
 
-    public GameMap random(){
+    public GameMap random() {
         return gameMaps.get(RANDOM.nextInt(gameMaps.size()));
     }
 
     /**
-     *
      * @param map The map to create the instnace on. (can be null)
      * @return A new game instance.
      */
@@ -120,13 +118,12 @@ public abstract class GameBase {
         try {
             Class<? extends GameInstance> instanceClass = instances.get(codeName);
 
+            if (instanceClass == null) {
+                return null;
+            }
+
             try {
-
-                if (instanceClass == null) {
-                    return null;
-                }
-
-                GameInstance instance = instanceClass.getConstructor(String.class, GameMap.class).newInstance(this.getCodeName(), map);
+                GameInstance instance = instanceClass.getConstructor(String.class, GameMap.class).newInstance(getCodeName(), map);
 
                 ArrayList<GameInstance> instances = runningInstances.get(codeName) == null ? new ArrayList<>() : runningInstances.get(codeName);
                 instances.add(instance);
@@ -137,15 +134,14 @@ public abstract class GameBase {
                     instance.join(player);
                 }
 
-
-                GameLogger.log(new GameLog(this, LogLevel.INFO, "Created new instance of game: " + getCodeName() + " with id: " + instance.getGameID(), true));
+                GameLogger.log(new GameLog(GameBase.this, LogLevel.INFO, "Created new instance of game: " + getCodeName() + " with id: " + instance.getGameID(), true));
                 return instance;
             } catch (InvocationTargetException | InstantiationException | IllegalAccessException | NoSuchMethodException e) {
-                GameLogger.log(new GameLog(this, LogLevel.ERROR, "Unable to create instance! " + e.getClass().getSimpleName(), true));
+                GameLogger.log(new GameLog(GameBase.this, LogLevel.ERROR, "Unable to create instance! " + e.getClass().getSimpleName(), true));
                 e.printStackTrace();
                 return null;
             }
-        }catch (Exception e){
+        } catch (Exception e) {
             GameLogger.log(new GameLog(this, LogLevel.ERROR, "Unable to create instance! " + e.getClass().getSimpleName(), true));
             e.printStackTrace();
             return null;

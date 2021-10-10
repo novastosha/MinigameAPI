@@ -2,10 +2,19 @@ main: dev.nova.gameapi.GAPIPlugin
 version: 1.0
 name: GameAPI
 startup: postworld
+api-version: 1.16
 commands:
   queue:
     description: Queues a player in a game!
+    usage: "&c/queue <game> <instance_name>"
   setOption:
     description: Sets an option of a map.
+    usage: "&c/set <>"
   map:
     description: Edits a map.
+  leave:
+    description: Makes a player leave a game!
+    aliases:
+      - l
+  spectate:
+    description: Makes a player spectate a other's game!

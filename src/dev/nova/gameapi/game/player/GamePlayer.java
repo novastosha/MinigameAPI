@@ -16,21 +16,21 @@ public class GamePlayer {
 
     private static final ArrayList<GamePlayer> PLAYERS = new ArrayList<>();
 
-    private final YamlConfiguration yamlConfiguartion;
+    private final YamlConfiguration yamlConfiguration;
     private final Player player;
-    private final File configuartionFile;
+    private final File configurationFile;
     private GameInstance game;
 
-    public GamePlayer(Player player) throws UnableToLoadGamePlayerExeption {
+    public GamePlayer(Player player) throws UnableToLoadGamePlayerException {
         this.player = player;
-        this.yamlConfiguartion = new YamlConfiguration();
+        this.yamlConfiguration = new YamlConfiguration();
 
-        this.configuartionFile = new File(Files.PLAYERS.getFile(),player.getUniqueId().toString()+".yml");
+        this.configurationFile = new File(Files.PLAYERS.getFile(),player.getUniqueId().toString()+".yml");
             try{
-                configuartionFile.createNewFile();
-                yamlConfiguartion.load(configuartionFile);
+                configurationFile.createNewFile();
+                yamlConfiguration.load(configurationFile);
             }catch (IOException | InvalidConfigurationException e){
-                throw new UnableToLoadGamePlayerExeption(e);
+                throw new UnableToLoadGamePlayerException(e);
             }
     }
 
@@ -46,28 +46,28 @@ public class GamePlayer {
         return game != null;
     }
 
-    public File getConfiguartionFile() {
-        return configuartionFile;
+    public File getConfigurationFile() {
+        return configurationFile;
     }
 
     public Player getPlayer() {
         return player;
     }
 
-    public YamlConfiguration getConfiguartion() {
-        return yamlConfiguartion;
+    public YamlConfiguration getConfiguration() {
+        return yamlConfiguration;
     }
 
     public void saveConfiguration() throws UnableToSaveGamePlayerConfig {
         try {
-            yamlConfiguartion.save(configuartionFile);
+            yamlConfiguration.save(configurationFile);
         } catch (IOException e) {
             throw new UnableToSaveGamePlayerConfig(e);
         }
     }
 
-    public static class UnableToLoadGamePlayerExeption extends Exception {
-        public UnableToLoadGamePlayerExeption(Exception e) {
+    public static class UnableToLoadGamePlayerException extends Exception {
+        public UnableToLoadGamePlayerException(Exception e) {
             super(e);
         }
     }
@@ -91,13 +91,13 @@ public class GamePlayer {
             GamePlayer player = new GamePlayer(bukkitPlayer);
             PLAYERS.add(player);
             return player;
-        } catch (UnableToLoadGamePlayerExeption e) {
+        } catch (UnableToLoadGamePlayerException e) {
             return null;
         }
     }
 
     public void setValue(GameBase gameBase,Class<? extends GameInstance> base, String path, Object value){
-        yamlConfiguartion.set(gameBase.getCodeName()+"."+gameBase.getCode(base)+"."+path,value);
+        yamlConfiguration.set(gameBase.getCodeName()+"."+gameBase.getCode(base)+"."+path,value);
         try {
             saveConfiguration();
         } catch (UnableToSaveGamePlayerConfig e) {
@@ -106,6 +106,6 @@ public class GamePlayer {
     }
 
     public Object getValue(GameBase gameBase,Class<? extends GameInstance> base, String path){
-        return yamlConfiguartion.get(gameBase.getCodeName()+"."+gameBase.getCode(base)+"."+path);
+        return yamlConfiguration.get(gameBase.getCodeName()+"."+gameBase.getCode(base)+"."+path);
     }
 }

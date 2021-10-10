@@ -7,9 +7,13 @@ import dev.nova.gameapi.game.queue.Queue;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 
-public class QueueCommand implements CommandExecutor {
+import java.util.ArrayList;
+import java.util.List;
+
+public class QueueCommand implements CommandExecutor, TabCompleter {
     @Override
     public boolean onCommand(CommandSender commandSender, Command command, String label, String[] args) {
 
@@ -19,6 +23,12 @@ public class QueueCommand implements CommandExecutor {
         }
 
         Player player = (Player) commandSender;
+
+        GamePlayer gamePlayer = GamePlayer.getPlayer(player);
+        if(gamePlayer.isInGame()){
+            player.sendMessage("§cCannot queue while in a game!");
+            return true;
+        }
 
         if(args.length == 0){
             player.sendMessage("§cPlease type a game!");
@@ -64,5 +74,32 @@ public class QueueCommand implements CommandExecutor {
             player.sendMessage("§cToo many arguments!");
             return true;
         }
+    }
+
+
+    @Override
+    public List<String> onTabComplete(CommandSender sender, Command command, String label, String[] args) {
+        ArrayList<String> list = new ArrayList<>();
+
+        if(args.length == 0 || args.length == 1){
+            for(GameBase base : GameManager.GAMES){
+                list.add(base.getCodeName().toLowerCase());
+            }
+            return list;
+        }
+
+        if(args.length == 2){
+            GameBase base = GameManager.getGame(args[0]);
+
+            if(base == null){
+                return list;
+            }
+
+            list.addAll(base.getInstances().keySet());
+
+            return list;
+        }
+
+        return list;
     }
 }

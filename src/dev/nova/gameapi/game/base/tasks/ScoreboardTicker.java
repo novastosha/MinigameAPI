@@ -3,6 +3,7 @@ package dev.nova.gameapi.game.base.tasks;
 import dev.nova.gameapi.game.base.GameBase;
 import dev.nova.gameapi.game.base.instance.GameInstance;
 import dev.nova.gameapi.game.base.scoreboard.Scoreboard;
+import dev.nova.gameapi.game.base.scoreboard.player.PlayerScoreboard;
 import dev.nova.gameapi.game.manager.GameManager;
 
 import java.util.ArrayList;
@@ -26,12 +27,16 @@ public class ScoreboardTicker implements Runnable {
             for(ArrayList<GameInstance> instances : game.getRunningInstances().values()) {
 
                 for (GameInstance instance : instances) {
-                    Scoreboard scoreboard = instance.getScoreboard();
+                    Scoreboard scoreboard = instance.getGameScoreboard();
 
-                    if (scoreboard != null) {
-                        if (scoreboard.getCycleColor() != null &&
-                                scoreboard.getCyclePassedColor() != null) {
-                            scoreboard.cycle();
+                    if (scoreboard != null && instance.getPlayerScoreboards().isEmpty()) {
+                        scoreboard.updateScoreboard();
+                        continue;
+                    }
+
+                    if(!instance.getPlayerScoreboards().isEmpty()){
+                        for(PlayerScoreboard scoreboard1 : instance.getPlayerScoreboards()){
+                            scoreboard1.updateScoreboard();
                         }
                     }
                 }

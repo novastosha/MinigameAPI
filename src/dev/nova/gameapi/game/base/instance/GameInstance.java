@@ -1,14 +1,19 @@
 package dev.nova.gameapi.game.base.instance;
 
+import dev.nova.gameapi.GAPIPlugin;
 import dev.nova.gameapi.game.base.GameBase;
 import dev.nova.gameapi.game.base.GameEvent;
 import dev.nova.gameapi.game.base.instance.controller.GameController;
 import dev.nova.gameapi.game.base.scoreboard.Scoreboard;
+import dev.nova.gameapi.game.base.scoreboard.game.GameScoreboard;
+import dev.nova.gameapi.game.base.scoreboard.player.PlayerScoreboard;
 import dev.nova.gameapi.game.base.values.GameValue;
 import dev.nova.gameapi.game.manager.GameManager;
 import dev.nova.gameapi.game.map.GameMap;
 import dev.nova.gameapi.game.map.MapInjection;
+import dev.nova.gameapi.game.map.options.OptionType;
 import dev.nova.gameapi.game.player.GamePlayer;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
@@ -48,9 +53,10 @@ public abstract class GameInstance {
     private final String[] description;
     private final String brief;
     private final String displayName;
-    private final boolean spectatable;
+    private final boolean canBeSpectated;
     private final Location spectatorLocation;
     private final ArrayList<GamePlayer> spectators;
+    private final ArrayList<PlayerScoreboard> playerScoreboards;
     private final GameController[] controllers;
 
     private Scoreboard scoreboard;
@@ -65,14 +71,15 @@ public abstract class GameInstance {
      * 
      * @param map The map the players are going to play in.
      */
-    public GameInstance(String displayName,@Nonnull String gameBase, GameMap map,String[] gameDescription, String gameBrief,boolean spectatable, GameController[] gameControllers) {
+    public GameInstance(String displayName,@Nonnull String gameBase, GameMap map,String[] gameDescription, String gameBrief,boolean canBeSpectated, GameController[] gameControllers) {
         this.gameBase = GameManager.getGame(gameBase);
-        this.spectatable = spectatable;
+        this.canBeSpectated = canBeSpectated;
         this.spectators = new ArrayList<GamePlayer>();
         this.displayName = displayName;
         this.description =gameDescription;
         this.brief = gameBrief;
         this.blocks = new HashMap<>();
+        this.playerScoreboards = new ArrayList<>();
         this.controllers = gameControllers;
         this.gameID = this.gameBase.getRunningInstances().get(this.gameBase.getCode(getClass())) != null ?
                 this.gameBase.getRunningInstances().get(this.gameBase.getCode(getClass())).size() +1
@@ -88,15 +95,19 @@ public abstract class GameInstance {
 
         this.utils = new GameUtils(this);
 
-        //this.spectatorLocation = spectatable ? this.map.loadOption("spectator-location", OptionType.LOCATION,true).getAsLocation() : null;
-        this.spectatorLocation = null;
+        this.spectatorLocation = canBeSpectated ? this.map.loadOption("spectator-location", OptionType.LOCATION,true).getAsLocation() : null;
     }
 
-    protected void setScoreboard(Scoreboard scoreboard){
+    protected void setGameScoreboard(GameScoreboard scoreboard){
         this.scoreboard = scoreboard;
-        for(GamePlayer player : players){
-            getScoreboard().addPlayer(player);
+    }
+
+    protected void addPlayerScoreboard(PlayerScoreboard scoreboard){
+        if(!players.contains(scoreboard.getPlayer()) && !spectators.contains(scoreboard.getPlayer())){
+            return;
         }
+
+        playerScoreboards.add(scoreboard);
     }
 
     public GameController[] getControllers() {
@@ -114,8 +125,8 @@ public abstract class GameInstance {
         return spectators;
     }
 
-    public boolean isSpectatable() {
-        return spectatable;
+    public boolean canBeSpectated(){
+        return canBeSpectated;
     }
 
     @Nullable
@@ -165,6 +176,7 @@ public abstract class GameInstance {
     public void join(GamePlayer player){
         if(canStart) {
             players.add(player);
+            player.setGame(this);
             for (GamePlayer send : players) {
                 send.getPlayer().sendMessage(player.getPlayer().getName() + " §a joined the game! §7(" + players.size() + "/" + gameMap.getPlayerLimit() + ")");
             }
@@ -204,13 +216,38 @@ public abstract class GameInstance {
                     injection.onEnd();
                 }
             }
-            this.gameBase.removeInstance(this);
+
+            for(GamePlayer player : players)  {
+                player.setGame(null);
+                player.getPlayer().setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
+
+            }
+
+            for(GamePlayer player : spectators){
+                player.setGame(null);
+                player.getPlayer().setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
+            }
+
+            playerScoreboards.clear();
+
+            if(map != null ){
+                /*if(map.getBukkitWorld().getPlayers().size() != 0) {
+                    for (Player player : map.getBukkitWorld().getPlayers()){
+                        player.kick(Component.text("§cGame ended and you were not moved to a lobby / a fallback server!"));
+                    }
+                    Bukkit.unloadWorld(map.getBukkitWorld(),false);
+                    map.deleteWorld(map.getBukkitWorld().getWorldFolder());
+                }*/
+            }
+
+            //this.gameBase.removeInstance(this);
         }
     }
 
     public void postEnd(){
         canStart = false;
         this.gameBase.removeInstance(this);
+        onEnd();
     }
 
     @OverridingMethodsMustInvokeSuper
@@ -221,6 +258,30 @@ public abstract class GameInstance {
     @OverridingMethodsMustInvokeSuper
     protected void addValue(GameValue<?> gameValue){
         this.values.add(gameValue);
+    }
+
+    @OverridingMethodsMustInvokeSuper
+    public void leave(GamePlayer player){
+
+        if(players.contains(player)){
+            onLeavePlayer(player);
+        }else{
+            onLeaveSpectator(player);
+        }
+
+        players.remove(player);
+        spectators.remove(player);
+
+        player.getPlayer().sendMessage("§cYou left the game!");
+        player.setGame(null);
+    }
+
+
+    protected void onLeavePlayer(GamePlayer player) {
+    }
+
+
+    protected void onLeaveSpectator(GamePlayer player) {
     }
 
     /**
@@ -265,10 +326,25 @@ public abstract class GameInstance {
         return utils;
     }
 
-    public Scoreboard getScoreboard() {
+    public Scoreboard getGameScoreboard() {
         return scoreboard;
     }
-    
+
+    public ArrayList<PlayerScoreboard> getPlayerScoreboards() {
+        return playerScoreboards;
+    }
+
+    @OverridingMethodsMustInvokeSuper
+    public void joinSpectator(GamePlayer player) {
+        if (spectatorLocation != null) {
+            player.getPlayer().teleport(spectatorLocation);
+            switchToSpectator(player);
+            getUtils().sendMessage("§7" + player.getPlayer().getName() + " started spectating!");
+        }else{
+            player.getPlayer().sendMessage("§cCannot spectate!");
+        }
+    }
+
     public static class GameUtils {
 
         private final GameInstance instance;
@@ -279,10 +355,12 @@ public abstract class GameInstance {
 
         public void sendMessage(String message){
             Arrays.stream(instance.players.toArray(new GamePlayer[0])).forEach(gamePlayer -> {gamePlayer.getPlayer().sendMessage(message);});
+            Arrays.stream(instance.spectators.toArray(new GamePlayer[0])).forEach(gamePlayer -> {gamePlayer.getPlayer().sendMessage(message);});
         }
 
         public void sendTitle(String title, String subTitle,int i, int i1, int i2){
             Arrays.stream(instance.players.toArray(new GamePlayer[0])).forEach(gamePlayer -> {gamePlayer.getPlayer().sendTitle(title, subTitle, i, i1, i2);});
+            Arrays.stream(instance.spectators.toArray(new GamePlayer[0])).forEach(gamePlayer -> {gamePlayer.getPlayer().sendTitle(title, subTitle, i, i1, i2);});
         }
 
     }
@@ -318,7 +396,7 @@ public abstract class GameInstance {
                 player.getPlayer().sendMessage("§cYou cannot break map blocks!");
             }
 
-            if(this.blocks.get(player).contains(((BlockBreakEvent) event).getBlock()) && !containsController(GameController.BREAK_BLOCKS)){
+            if(this.blocks.get(player) != null && this.blocks.get(player).contains(((BlockBreakEvent) event).getBlock()) && !containsController(GameController.BREAK_BLOCKS)){
                 ((Cancellable) event).setCancelled(true);
             }
         }
@@ -332,7 +410,7 @@ public abstract class GameInstance {
             ((Cancellable) event).setCancelled(true);
         }
 
-        if(event instanceof PlayerPickupArrowEvent && ! containsController(GameController.ARROW_PICKUPS)){
+        if(event instanceof PlayerPickupArrowEvent && !containsController(GameController.ARROW_PICKUPS)){
             ((Cancellable) event).setCancelled(true);
         }
 
@@ -341,8 +419,7 @@ public abstract class GameInstance {
 
             if(!containsController(GameController.DEATH_DROPS)) {
                 deathEvent.setDroppedExp(0);
-                deathEvent.setKeepInventory(true);
-                deathEvent.getEntity().getInventory().clear();
+                deathEvent.getDrops().clear();
 
             }
         }
@@ -352,27 +429,48 @@ public abstract class GameInstance {
             return;
         }
 
-        GamePlayer player;
+        GamePlayer player = null;
         if(event instanceof PlayerChangedWorldEvent) {
-            player = GamePlayer.getPlayer(((PlayerChangedWorldEvent) event).getPlayer());
-        }else if(event instanceof PlayerQuitEvent){
+
+            PlayerChangedWorldEvent worldChangeEvent = (PlayerChangedWorldEvent) event;
+
+            if(map != null) {
+                if (worldChangeEvent.getFrom().equals(map.getBukkitWorld())) {
+                    player = GamePlayer.getPlayer(worldChangeEvent.getPlayer());
+                }
+            }
+            
+        }else if(event instanceof PlayerQuitEvent) {
             player = GamePlayer.getPlayer(((PlayerQuitEvent) event).getPlayer());
-        }else{
-            return;
         }
 
-        if(players.contains(player) || spectators.contains(player)){
-            players.remove(player);
-            spectators.remove(player);
-            player.getPlayer().sendMessage("§7You left the game with id: "+gameID);
+        if(player != null) {
+            if(spectators.contains(player)){
+                getUtils().sendMessage("§7"+player.getPlayer().getName()+" is no longer spectating!");
+            }else if(players.contains(player)){
+                getUtils().sendMessage("§7"+player.getPlayer().getName()+" left the game!");
+            }
+            if (players.contains(player) || spectators.contains(player)) {
+                players.remove(player);
+                spectators.remove(player);
+                player.getPlayer().sendMessage("§7You left the game with id: " + gameID);
+                player.setGame(null);
+            }
         }
     }
 
     public void switchToSpectator(GamePlayer player){
-        if(players.contains(player)){
+            Bukkit.getServer().getScheduler().runTaskLater(GAPIPlugin.getPlugin(GAPIPlugin.class), new Runnable() {
+                @Override
+                public void run() {
+                    player.getPlayer().spigot().respawn();
+                }
+            },5L);
             players.remove(player);
             spectators.add(player);
             player.getPlayer().setGameMode(GameMode.SPECTATOR);
-        }
+            player.getPlayer().setHealth(20L);
+            player.getPlayer().setFoodLevel(20);
+            player.getPlayer().sendMessage(ChatColor.GRAY+"You are now a spectator!");
     }
 }

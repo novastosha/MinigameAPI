@@ -24,18 +24,18 @@ public class Queue {
     private boolean started;
     private int coolDownTicks;
 
-    public Queue(String instance,GameBase game, GameMap map){
+    public Queue(String instance, GameBase game, GameMap map) {
         this.game = game;
         this.map = map;
         this.instanceName = instance;
-        this.id = OPEN_QUEUES.size()+1;
+        this.id = OPEN_QUEUES.size() + 1;
         this.playersQueued = new ArrayList<GamePlayer>();
         OPEN_QUEUES.add(this);
     }
 
-    public static Queue[] getQueues(GameBase game){
+    public static Queue[] getQueues(GameBase game) {
         ArrayList<Queue> queues = new ArrayList<>();
-        for(Queue queue : OPEN_QUEUES){
+        for (Queue queue : OPEN_QUEUES) {
             if (!CLOSED_QUEUES.contains(queue)) {
                 if (queue.game.equals(game)) queues.add(queue);
             }
@@ -43,9 +43,9 @@ public class Queue {
         return queues.toArray(new Queue[0]);
     }
 
-    public static Queue[] getQueues(int freeSlotsNeeded){
+    public static Queue[] getQueues(int freeSlotsNeeded) {
         ArrayList<Queue> queues = new ArrayList<>();
-        for(Queue queue : OPEN_QUEUES){
+        for (Queue queue : OPEN_QUEUES) {
             if (!CLOSED_QUEUES.contains(queue)) {
                 if (queue.playersQueued.size() + freeSlotsNeeded <= queue.map.getPlayerLimit()) queues.add(queue);
             }
@@ -53,9 +53,9 @@ public class Queue {
         return queues.toArray(new Queue[0]);
     }
 
-    public static Queue[] getQueues(GameBase game, int freeSlotsNeeded){
+    public static Queue[] getQueues(GameBase game, int freeSlotsNeeded) {
         ArrayList<Queue> queues = new ArrayList<>();
-        for(Queue queue : OPEN_QUEUES) {
+        for (Queue queue : OPEN_QUEUES) {
             if (!CLOSED_QUEUES.contains(queue)) {
                 if (queue.game.equals(game) && queue.playersQueued.size() + freeSlotsNeeded <= queue.map.getPlayerLimit())
                     queues.add(queue);
@@ -63,6 +63,34 @@ public class Queue {
             }
         }
         return queues.toArray(new Queue[0]);
+    }
+
+    public static Queue getPlayerQueue(GamePlayer player) {
+        Queue queueIn = null;
+
+        for (Queue queue : OPEN_QUEUES) {
+            if (queue.playersQueued.contains(player)) {
+                queueIn = queue;
+                break;
+            }
+        }
+
+        for (Queue queue : CLOSED_QUEUES) {
+            if (queueIn == null) {
+                if (queue.playersQueued.contains(player)) {
+                    queueIn = queue;
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+
+        return queueIn;
+    }
+
+    public static boolean isPlayerInQueue(GamePlayer player) {
+        return getPlayerQueue(player) != null;
     }
 
     public GameBase getGame() {
@@ -73,32 +101,32 @@ public class Queue {
         return playersQueued;
     }
 
-    public void addPlayer(GamePlayer player){
+    public void addPlayer(GamePlayer player) {
         playersQueued.add(player);
-        if(playersQueued.size() == map.getPlayerLimit()){
+        if (playersQueued.size() == map.getPlayerLimit()) {
             onQueueFull();
         }
     }
 
-    public void removePlayer(GamePlayer player){
+    public void removePlayer(GamePlayer player) {
         playersQueued.remove(player);
-        if(playersQueued.size() < map.getPlayerLimit()-1){
+        player.getPlayer().sendMessage("§cYou left the queue with id: §7" + id);
+        if (playersQueued.size() < map.getPlayerLimit() - 1) {
             onQueueUnFull();
         }
     }
 
     public void onQueueUnFull() {
-        if(!OPEN_QUEUES.contains(this)){
-            if(instance == null){
-                OPEN_QUEUES.add(this);
-                CLOSED_QUEUES.remove(this);
-                for(GamePlayer player : playersQueued){
-                    player.getPlayer().sendMessage("§cStarting cancelled because a player left the queue!");
-                }
-                this.started = false;
-            }else{
-                GameLogger.log(new GameLog(game,LogLevel.ERROR,"Queue with id: "+id+" invoked unfull after instance field been set!",true));
+
+        if (instance == null) {
+            OPEN_QUEUES.add(this);
+            CLOSED_QUEUES.remove(this);
+            for (GamePlayer player : playersQueued) {
+                player.getPlayer().sendMessage("§cStarting cancelled because a player left the queue!");
             }
+            this.started = false;
+        } else {
+            GameLogger.log(new GameLog(game, LogLevel.ERROR, "Queue with id: " + id + " invoked unfull after instance field been set!", true));
         }
     }
 
@@ -106,15 +134,15 @@ public class Queue {
         return map;
     }
 
-    public void onQueueFull(){
+    public void onQueueFull() {
         OPEN_QUEUES.remove(this);
         CLOSED_QUEUES.add(this);
 
         this.started = true;
 
-        if(coolDownTicks == 0){
-            for(GamePlayer player : playersQueued){
-                player.getPlayer().sendMessage("§aGame is starting in: §710 seconds");
+        if (coolDownTicks == 0) {
+            for (GamePlayer player : playersQueued) {
+                player.getPlayer().sendMessage("§aGame is starting in: §75 seconds");
             }
         }
 
@@ -128,13 +156,13 @@ public class Queue {
 
     public void coolDownTick() {
 
-        if(started) {
+        if (started) {
             coolDownTicks++;
 
-            if(coolDownTicks == 1 * 20L) {
+            if (coolDownTicks == (5 * 20L) + 1) {
                 if (instance == null) {
-                    this.instance = game.newInstance(instanceName,map);
-                    for(GamePlayer player : playersQueued){
+                    this.instance = game.newInstance(instanceName, map);
+                    for (GamePlayer player : playersQueued) {
                         instance.join(player);
                     }
                     instance.onStart();
@@ -142,7 +170,7 @@ public class Queue {
                     GameLogger.log(new GameLog(game, LogLevel.ERROR, "The queue with id: " + id + " had an instance running but invoked onQueueFull", true));
                 }
             }
-        }else if(coolDownTicks != 0){
+        } else {
             coolDownTicks = 0;
         }
     }

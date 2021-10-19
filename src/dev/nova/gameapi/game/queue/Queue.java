@@ -9,6 +9,7 @@ import dev.nova.gameapi.game.map.GameMap;
 import dev.nova.gameapi.game.player.GamePlayer;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 
 public class Queue {
 
@@ -20,17 +21,33 @@ public class Queue {
     private final GameMap map;
     private final int id;
     private final String instanceName;
+    private final boolean privateQueue;
     private GameInstance instance;
     private boolean started;
     private int coolDownTicks;
 
-    public Queue(String instance, GameBase game, GameMap map) {
+    public Queue(String instance, GameBase game, GameMap map,GamePlayer[] players) {
         this.game = game;
+        if(players == null || players.length == 0){
+            this.privateQueue = false;
+        }else{
+            this.privateQueue = true;
+        }
         this.map = map;
         this.instanceName = instance;
         this.id = OPEN_QUEUES.size() + 1;
         this.playersQueued = new ArrayList<GamePlayer>();
+
         OPEN_QUEUES.add(this);
+        if(privateQueue){
+            for(GamePlayer player : players){
+                addPlayer(player);
+            }
+        }
+    }
+
+    public Queue(String instance, GameBase game, GameMap map) {
+        this(instance,game,map,new GamePlayer[0]);
     }
 
     public static Queue[] getQueues(GameBase game) {
@@ -103,6 +120,16 @@ public class Queue {
 
     public void addPlayer(GamePlayer player) {
         playersQueued.add(player);
+        for(GamePlayer gamePlayer : playersQueued) {
+            int needed = map.getPlayerLimit() - playersQueued.size();
+            if (needed == 0) {
+                gamePlayer.getPlayer().sendMessage("§8" + player.getPlayer().getName() + " §7has joined the queue! (Full queue!)");
+            }else if(needed == 1){
+                gamePlayer.getPlayer().sendMessage("§8" + player.getPlayer().getName() + " §7has joined the queue! (need "+needed+" more player)");
+            }else{
+                gamePlayer.getPlayer().sendMessage("§8" + player.getPlayer().getName() + " §7has joined the queue! (need "+needed+" more players)");
+            }
+        }
         if (playersQueued.size() == map.getPlayerLimit()) {
             onQueueFull();
         }
@@ -119,8 +146,10 @@ public class Queue {
     public void onQueueUnFull() {
 
         if (instance == null) {
-            OPEN_QUEUES.add(this);
-            CLOSED_QUEUES.remove(this);
+            if(!privateQueue) {
+                OPEN_QUEUES.add(this);
+                CLOSED_QUEUES.remove(this);
+            }
             for (GamePlayer player : playersQueued) {
                 player.getPlayer().sendMessage("§cStarting cancelled because a player left the queue!");
             }
@@ -135,8 +164,8 @@ public class Queue {
     }
 
     public void onQueueFull() {
-        OPEN_QUEUES.remove(this);
-        CLOSED_QUEUES.add(this);
+            OPEN_QUEUES.remove(this);
+            CLOSED_QUEUES.add(this);
 
         this.started = true;
 

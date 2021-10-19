@@ -61,6 +61,8 @@ public class GAPIPlugin extends JavaPlugin {
             }
         }
 
+        getConfig().options().copyDefaults(true);
+
         Bukkit.getServer().getScheduler().scheduleSyncRepeatingTask(this, GameTicker.instance(), 0L, 0L);
         Bukkit.getServer().getScheduler().scheduleSyncRepeatingTask(this, ScoreboardTicker.instance(), 0L, 0L);
 

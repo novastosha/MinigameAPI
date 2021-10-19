@@ -1,7 +1,6 @@
 package dev.nova.gameapi.utils;
 
 import dev.nova.gameapi.GAPIPlugin;
-import sun.net.ftp.FtpClient;
 
 import java.io.File;
 

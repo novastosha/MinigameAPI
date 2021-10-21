@@ -4,6 +4,7 @@ import dev.nova.gameapi.GAPIPlugin;
 import dev.nova.gameapi.game.base.instance.GameInstance;
 import dev.nova.gameapi.game.base.lobby.Lobby;
 import dev.nova.gameapi.game.base.lobby.core.LobbyBase;
+import dev.nova.gameapi.game.base.mysql.DatabaseConnection;
 import dev.nova.gameapi.game.map.GameMap;
 import dev.nova.gameapi.game.logger.GameLog;
 import dev.nova.gameapi.game.logger.GameLogger;
@@ -41,12 +42,15 @@ public abstract class GameBase {
     private final Plugin plugin;
     private final YamlConfiguration lobbyConfiguration;
     private final ArrayList<Lobby> lobbyInstances;
+    private final String[] databasesRequired;
+    private final DatabaseConnection[] databases;
     private LobbyBase lobbyBase;
     private boolean lobbySupport;
     private final File lobbyFile;
 
-    public GameBase(Plugin plugin, String codeName, String displayName, Class<? extends GameInstance>[] gameInstances, ChatColor gameTheme, boolean lobbySupport) {
+    public GameBase(Plugin plugin, String codeName, String displayName, Class<? extends GameInstance>[] gameInstances, ChatColor gameTheme, boolean lobbySupport,String[] databases) {
         this.runningInstances = new HashMap<>();
+        this.databasesRequired = databases;
         this.lobbySupport = lobbySupport;
         this.codeName = codeName;
         this.plugin = plugin;
@@ -56,6 +60,7 @@ public abstract class GameBase {
         this.gameTheme = gameTheme;
         this.instances = new HashMap<>();
         this.lobbyFile = new File(Files.getGameFolder(codeName), "lobby.yml");
+        this.databases = loadDatabases();
         this.lobbyConfiguration = new YamlConfiguration();
 
         if (lobbySupport) {
@@ -96,6 +101,61 @@ public abstract class GameBase {
             }
             GameLogger.log(new GameLog(this, LogLevel.ERROR, "Unable to load game instance: " + instance.getSimpleName() + " as it does not contain a public static final String field named 'code'", true));
         }
+    }
+
+    private DatabaseConnection[] loadDatabases() {
+        if(databasesRequired == null) return new DatabaseConnection[0];
+        File databaseFile = Files.getGameDatabasesFile(codeName,true);
+
+        if(!databaseFile.exists()) return new DatabaseConnection[0];
+
+        YamlConfiguration databasesConfiguration = new YamlConfiguration();
+        try{
+            databasesConfiguration.load(databaseFile);
+        }catch (IOException | InvalidConfigurationException e) {
+            return new DatabaseConnection[0];
+        }
+
+        ArrayList<DatabaseConnection> connections = new ArrayList<>();
+
+        for(String db : databasesRequired){
+            ConfigurationSection databaseConfig = databasesConfiguration.getConfigurationSection(db);
+
+            if(databaseConfig == null){
+                continue;
+            }
+
+            String host = databaseConfig.getString("host");
+            int port = databaseConfig.contains("port") ? databaseConfig.getInt("port") : 3306;
+            String username = databaseConfig.getString("username");
+            String password = databaseConfig.getString("password");
+            String database = databaseConfig.contains("database") ? databaseConfig.getString("database") : db;
+
+            if(host == null || username == null || password == null){
+                continue;
+            }
+
+            DatabaseConnection connection = new DatabaseConnection(host,port,username,password,database,db);
+
+            if(connection.connection == null){
+                continue;
+            }
+
+            connections.add(connection);
+        }
+
+        return connections.toArray(new DatabaseConnection[0]);
+    }
+
+    public DatabaseConnection getDatabase(String name){
+        for(DatabaseConnection connection : databases){
+            if(connection.name.equalsIgnoreCase(name)) return connection;
+        }
+        return null;
+    }
+
+    public GameBase(Plugin plugin, String codeName, String displayName, Class<? extends GameInstance>[] gameInstances, ChatColor gameTheme, boolean lobbySupport){
+        this(plugin,codeName,displayName,gameInstances,gameTheme,lobbySupport,new String[0]);
     }
 
     private String[] loadSpawnData() {

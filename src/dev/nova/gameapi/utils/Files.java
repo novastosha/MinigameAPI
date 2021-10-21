@@ -3,6 +3,7 @@ package dev.nova.gameapi.utils;
 import dev.nova.gameapi.GAPIPlugin;
 
 import java.io.File;
+import java.io.IOException;
 
 public enum Files {
     LOG_FOLDER(new File(GAPIPlugin.getPlugin(GAPIPlugin.class).getDataFolder(),"logs"),true,false),
@@ -37,6 +38,18 @@ public enum Files {
 
     public static File getGameFolder(String gameName){
         return new File(GAME_FOLDER.getFile().getPath().replaceAll("NAME",gameName));
+    }
+
+    public static File getGameDatabasesFile(String gameName,boolean create){
+        File file = new File(new File(GAME_FOLDER.getFile().getPath().replaceAll("NAME",gameName)),"database.yml");
+
+        try {
+            file.createNewFile();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return file;
     }
 
     public static File getGameMapsFolder(String gameName){

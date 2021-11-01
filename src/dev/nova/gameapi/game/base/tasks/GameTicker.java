@@ -37,6 +37,11 @@ public class GameTicker implements Runnable {
 
                     for (GameInstance instance : instances) {
                         instance.tick();
+
+                        if(instance.getCurrentEvent() != null){
+                            instance.getCurrentEvent().onTick();
+                        }
+
                         assert instance.getGameMap() != null && instance.getMap() != null;
 
                         instance.getGameMap().onTick(instance.getMap());

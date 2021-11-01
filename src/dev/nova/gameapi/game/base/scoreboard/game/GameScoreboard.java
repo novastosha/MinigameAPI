@@ -81,24 +81,25 @@ public class GameScoreboard implements Scoreboard {
 
     @Override
     public void updateScoreboard() {
+        if(!game.hasEnded()) {
+            if (lines == null) return;
 
-        if(lines == null) return;
+            this.objective = getBukkitScoreboard().registerNewObjective(UUID.randomUUID().toString().split("-")[0], "dummy", Component.text("dummy"));
+            objective.setDisplaySlot(DisplaySlot.SIDEBAR);
+            objective.displayName(Component.text(theme + "§l" + title.toUpperCase()));
 
-        this.objective = getBukkitScoreboard().registerNewObjective(UUID.randomUUID().toString().split("-")[0],"dummy", Component.text("dummy"));
-        objective.setDisplaySlot(DisplaySlot.SIDEBAR);
-        objective.displayName(Component.text(theme+"§l"+title.toUpperCase()));
+            for (ScoreboardLine line : lines) {
+                objective.getScore(line.getAsString(this)).setScore(line.getIndex());
+            }
 
-        for(ScoreboardLine line : lines){
-            objective.getScore(line.getAsString(this)).setScore(line.getIndex());
-        }
-
-        for (GamePlayer player : game.getPlayers()) {
-            player.getPlayer().setScoreboard(getBukkitScoreboard());
-        }
-
-        if(showToSpectators){
-            for (GamePlayer player : game.getSpectators()) {
+            for (GamePlayer player : game.getPlayers()) {
                 player.getPlayer().setScoreboard(getBukkitScoreboard());
+            }
+
+            if (showToSpectators) {
+                for (GamePlayer player : game.getSpectators()) {
+                    player.getPlayer().setScoreboard(getBukkitScoreboard());
+                }
             }
         }
     }

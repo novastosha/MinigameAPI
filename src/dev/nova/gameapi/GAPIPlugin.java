@@ -13,7 +13,10 @@ import dev.nova.gameapi.game.base.tasks.ScoreboardTicker;
 import dev.nova.gameapi.game.manager.GameManager;
 import dev.nova.gameapi.game.map.command.MapEditCommand;
 import dev.nova.gameapi.game.map.options.command.OptionCommands;
+import dev.nova.gameapi.game.queue.command.ForceStartCommand;
 import dev.nova.gameapi.game.queue.command.QueueCommand;
+import dev.nova.gameapi.party.command.PartyCommand;
+import dev.nova.gameapi.party.listener.ChatListener;
 import dev.nova.gameapi.utils.Files;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -29,7 +32,7 @@ public class GAPIPlugin extends JavaPlugin {
     public void onEnable() {
 
         new GameEventListener(this, true);
-
+        Bukkit.getServer().getPluginManager().registerEvents(new ChatListener(),this);
 
         QueueCommand queueCommand = new QueueCommand();
         getCommand("queue").setExecutor(queueCommand);
@@ -44,6 +47,11 @@ public class GAPIPlugin extends JavaPlugin {
         SpectateCommand spectateCommand = new SpectateCommand();
         getCommand("spectate").setExecutor(spectateCommand);
         getCommand("spectate").setTabCompleter(spectateCommand);
+
+        PartyCommand partyCommand = new PartyCommand();
+        getCommand("party").setExecutor(partyCommand);
+
+        getCommand("forcestart").setExecutor(new ForceStartCommand());
 
         for (Files files : Files.values()) {
             if (files.isToCreate()) {
@@ -64,7 +72,7 @@ public class GAPIPlugin extends JavaPlugin {
         getConfig().options().copyDefaults(true);
 
         Bukkit.getServer().getScheduler().scheduleSyncRepeatingTask(this, GameTicker.instance(), 0L, 0L);
-        Bukkit.getServer().getScheduler().scheduleSyncRepeatingTask(this, ScoreboardTicker.instance(), 0L, 0L);
+        //Bukkit.getServer().getScheduler().scheduleSyncRepeatingTask(this, ScoreboardTicker.instance(), 0L, 0L);
 
         GameManager.loadGames();
 
@@ -91,6 +99,7 @@ public class GAPIPlugin extends JavaPlugin {
         for (GameBase base : GameManager.GAMES) {
             for (ArrayList<GameInstance> instances : base.getRunningInstances().values()) {
                 for (GameInstance instance : instances) {
+                    Bukkit.getServer().getScheduler().cancelTask(instance.eventsTaskID);
                     if (instance.getMap() != null) {
                         if (instance.getMap().getBukkitWorld().getPlayers().size() != 0) {
                             for (Player player : instance.getMap().getBukkitWorld().getPlayers()) {

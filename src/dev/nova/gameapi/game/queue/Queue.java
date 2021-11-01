@@ -23,7 +23,8 @@ public class Queue {
     private final String instanceName;
     private final boolean privateQueue;
     private GameInstance instance;
-    private boolean started;
+    public boolean started;
+    public boolean forceStart = false;
     private int coolDownTicks;
 
     public Queue(String instance, GameBase game, GameMap map,GamePlayer[] players) {
@@ -138,24 +139,25 @@ public class Queue {
     public void removePlayer(GamePlayer player) {
         playersQueued.remove(player);
         player.getPlayer().sendMessage("§cYou left the queue with id: §7" + id);
-        if (playersQueued.size() < map.getPlayerLimit() - 1) {
+        if (playersQueued.size() < map.getPlayerLimit() - 1 && !forceStart) {
             onQueueUnFull();
         }
     }
 
     public void onQueueUnFull() {
-
-        if (instance == null) {
-            if(!privateQueue) {
-                OPEN_QUEUES.add(this);
-                CLOSED_QUEUES.remove(this);
+        if(!forceStart) {
+            if (instance == null) {
+                if (!privateQueue) {
+                    OPEN_QUEUES.add(this);
+                    CLOSED_QUEUES.remove(this);
+                }
+                for (GamePlayer player : playersQueued) {
+                    player.getPlayer().sendMessage("§cStarting cancelled because a player left the queue!");
+                }
+                this.started = false;
+            } else {
+                GameLogger.log(new GameLog(game, LogLevel.ERROR, "Queue with id: " + id + " invoked unfull after instance field been set!", true));
             }
-            for (GamePlayer player : playersQueued) {
-                player.getPlayer().sendMessage("§cStarting cancelled because a player left the queue!");
-            }
-            this.started = false;
-        } else {
-            GameLogger.log(new GameLog(game, LogLevel.ERROR, "Queue with id: " + id + " invoked unfull after instance field been set!", true));
         }
     }
 

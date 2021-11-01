@@ -11,5 +11,6 @@ public abstract class MapInjection {
     public abstract void onStart();
     public abstract void tick();
     public abstract void onEnd();
+    public abstract void onInitialize();
 
 }

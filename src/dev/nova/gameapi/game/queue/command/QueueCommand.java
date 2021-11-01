@@ -4,6 +4,8 @@ import dev.nova.gameapi.game.base.GameBase;
 import dev.nova.gameapi.game.manager.GameManager;
 import dev.nova.gameapi.game.player.GamePlayer;
 import dev.nova.gameapi.game.queue.Queue;
+import dev.nova.gameapi.party.Party;
+import net.kyori.adventure.text.Component;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -17,12 +19,10 @@ public class QueueCommand implements CommandExecutor, TabCompleter {
     @Override
     public boolean onCommand(CommandSender commandSender, Command command, String label, String[] args) {
 
-        if(!(commandSender instanceof Player)){
+        if(!(commandSender instanceof Player player)){
             commandSender.sendMessage("§cOnly players can execute this command!");
             return true;
         }
-
-        Player player = (Player) commandSender;
 
         GamePlayer gamePlayer = GamePlayer.getPlayer(player);
         if(gamePlayer.isInGame()){
@@ -53,10 +53,21 @@ public class QueueCommand implements CommandExecutor, TabCompleter {
                 return true;
             }
 
+            if(gamePlayer.isInParty()){
+                if(gamePlayer != gamePlayer.getParty().getLeader()){
+                    player.sendMessage("§cOnly the leader can queue you into games!");
+                    return true;
+                }
+            }
+
             Queue queue;
 
             try{
-                queue = Queue.getQueues(game,1)[0];
+                if(!gamePlayer.isInParty()) {
+                    queue = Queue.getQueues(game, 1)[0];
+                }else{
+                    queue = Queue.getQueues(game, gamePlayer.getParty().getPartyMembers().size())[0];
+                }
             }catch (ArrayIndexOutOfBoundsException e){
                 queue = new Queue(args[1],game,game.random());
             }
@@ -65,10 +76,24 @@ public class QueueCommand implements CommandExecutor, TabCompleter {
                 queue = new Queue(args[1],game,game.random());
             }
 
-            player.sendMessage("§aYou have been queued in a queue with id: §7"+queue.getId());
+            if(gamePlayer.isInParty()){
+                if(queue.getMap().getPlayerLimit() < gamePlayer.getParty().getPartyMembers().size()){
+                    Party.sendMessage(gamePlayer, Component.text("§cThe game that you are trying to queue in is too small!"));
+                    return true;
+                }
+            }
 
-            queue.addPlayer(GamePlayer.getPlayer(player));
+            if(!gamePlayer.isInParty()) {
+                player.sendMessage("§aYou have been queued in a queue with id: §7" + queue.getId());
 
+                queue.addPlayer(GamePlayer.getPlayer(player));
+            }else{
+                gamePlayer.getParty().sendGlobalMessage(Component.text("§7The party leader is queuing you to: §3"+args[1]));
+                for(GamePlayer player1 : gamePlayer.getParty().getPartyMembers().keySet()){
+                    player1.getPlayer().sendMessage("§aYou have been queued in a queue with id: §7" + queue.getId());
+                    queue.addPlayer(player1);
+                }
+            }
             return true;
         }else{
             player.sendMessage("§cToo many arguments!");

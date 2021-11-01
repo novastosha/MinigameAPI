@@ -18,3 +18,11 @@ commands:
       - l
   spectate:
     description: Makes a player spectate a other's game!
+  party:
+    description: The party API implementation.
+    aliases:
+      - p
+  forcestart:
+    description: Starts a queue forcivly
+    aliases:
+      - fs

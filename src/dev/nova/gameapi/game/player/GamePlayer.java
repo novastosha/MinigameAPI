@@ -2,6 +2,8 @@ package dev.nova.gameapi.game.player;
 
 import dev.nova.gameapi.game.base.GameBase;
 import dev.nova.gameapi.game.base.instance.GameInstance;
+import dev.nova.gameapi.party.Party;
+import dev.nova.gameapi.party.invite.PartyInviteInfo;
 import dev.nova.gameapi.utils.Files;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -19,7 +21,10 @@ public class GamePlayer {
     private final YamlConfiguration yamlConfiguration;
     private final Player player;
     private final File configurationFile;
+    private final ArrayList<PartyInviteInfo> pendingPartyInvites;
+    public boolean partyChat = false;
     private GameInstance game;
+    private Party party;
 
     public GamePlayer(Player player) throws UnableToLoadGamePlayerException {
         this.player = player;
@@ -32,6 +37,37 @@ public class GamePlayer {
             }catch (IOException | InvalidConfigurationException e){
                 throw new UnableToLoadGamePlayerException(e);
             }
+        this.pendingPartyInvites = new ArrayList<PartyInviteInfo>();
+    }
+
+    public ArrayList<PartyInviteInfo> getPendingPartyInvites() {
+        return pendingPartyInvites;
+    }
+
+    public Party getParty() {
+        return party;
+    }
+
+    public void setParty(Party party) {
+        this.party = party;
+    }
+
+    public boolean isInParty(){
+        return party != null;
+    }
+
+    public boolean isBeingInvitedBy(GamePlayer player){
+        for(PartyInviteInfo info : pendingPartyInvites){
+            if(info.inviter().equals(player)) return true;
+        }
+        return false;
+    }
+
+    public boolean isBeingInvitedTo(Party party){
+        for(PartyInviteInfo info : pendingPartyInvites){
+            if(info.party().equals(party)) return true;
+        }
+        return false;
     }
 
     public GameInstance getGame() {
@@ -64,6 +100,13 @@ public class GamePlayer {
         } catch (IOException e) {
             throw new UnableToSaveGamePlayerConfig(e);
         }
+    }
+
+    public PartyInviteInfo getInviteOf(GamePlayer accepting) {
+        for(PartyInviteInfo info : pendingPartyInvites){
+            if(info.inviter().equals(accepting)) return info;
+        }
+        return null;
     }
 
     public static class UnableToLoadGamePlayerException extends Exception {

@@ -21,8 +21,6 @@ public class GameOption {
         this.type = optionType;
         this.value = value;
         this.map = map;
-
-        getAsArray(String.class);
     }
 
     public GameMap.Map getMap() {

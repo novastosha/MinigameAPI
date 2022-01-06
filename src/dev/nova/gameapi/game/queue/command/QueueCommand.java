@@ -69,11 +69,11 @@ public class QueueCommand implements CommandExecutor, TabCompleter {
                     queue = Queue.getQueues(game, gamePlayer.getParty().getPartyMembers().size())[0];
                 }
             }catch (ArrayIndexOutOfBoundsException e){
-                queue = new Queue(args[1],game,game.random());
+                queue = new Queue(args[1],game,game.randomMap(args[1]));
             }
 
             if(queue == null){
-                queue = new Queue(args[1],game,game.random());
+                queue = new Queue(args[1],game,game.randomMap(args[1]));
             }
 
             if(gamePlayer.isInParty()){

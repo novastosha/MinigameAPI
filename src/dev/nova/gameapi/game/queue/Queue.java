@@ -99,9 +99,8 @@ public class Queue {
                     queueIn = queue;
                     break;
                 }
-            } else {
-                break;
-            }
+            } else break;
+
         }
 
         return queueIn;

@@ -1,6 +1,9 @@
 package dev.nova.gameapi.game.base.lobby;
 
 import dev.nova.gameapi.game.base.lobby.core.LobbyBase;
+import dev.nova.gameapi.game.logger.GameLog;
+import dev.nova.gameapi.game.logger.GameLogger;
+import dev.nova.gameapi.game.logger.LogLevel;
 import dev.nova.gameapi.game.player.GamePlayer;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
@@ -9,6 +12,9 @@ import org.bukkit.GameMode;
 import org.bukkit.World;
 import org.bukkit.WorldCreator;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Listener;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionType;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -19,13 +25,14 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 
-public class Lobby {
+public class Lobby implements Listener {
 
     private final LobbyBase lobbyBase;
     private final World world;
     private final int id;
 
     public Lobby(LobbyBase lobbyBase, int id){
+        GameLogger.log(new GameLog(lobbyBase.game(), LogLevel.INFO,"Created new lobby instance with id: "+id,true));
         this.lobbyBase = lobbyBase;
         this.id = id;
         this.world = createBukkitWorld();
@@ -106,12 +113,15 @@ public class Lobby {
     }
 
     public void delete() {
+        GameLogger.log(new GameLog(lobbyBase.game(), LogLevel.INFO,"Lobby: "+id+" is shutting down.",true));
         for(Player player : world.getPlayers()){
-            player.kick(Component.text("§cLobby shutting down!"));
+            player.kick(Component.text("§cLobby closing!"));
         }
 
         Bukkit.getServer().unloadWorld(world,false);
         deleteWorld(world.getWorldFolder());
+
+        //lobbyBase.game().getLobbyInstances().remove(this);
     }
 
     public void move(GamePlayer player) {
@@ -122,5 +132,8 @@ public class Lobby {
         player.getPlayer().getInventory().clear();
         player.getPlayer().setGameMode(GameMode.ADVENTURE);
         player.getPlayer().teleport(lobbyBase.parseLocation(this));
+        for(PotionEffect potionType : player.getPlayer().getActivePotionEffects()){
+            player.getPlayer().removePotionEffect(potionType.getType());
+        }
     }
 }

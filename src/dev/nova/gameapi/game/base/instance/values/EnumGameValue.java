@@ -5,7 +5,7 @@ import dev.nova.gameapi.game.base.instance.values.base.GameValue;
 
 public class EnumGameValue<E extends Enum<E>> extends GameValue<E> {
 
-    int inOrdinal = 0;
+    private int inOrdinal = 0;
 
     public EnumGameValue(GameInstance instance, String id, String displayName, E defaultValue) {
         super(instance, id, displayName, defaultValue);

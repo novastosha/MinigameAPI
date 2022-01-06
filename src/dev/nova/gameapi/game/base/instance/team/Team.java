@@ -59,4 +59,11 @@ public class Team {
             player.getPlayer().sendMessage("§7"+partyPlayer.getPlayer().getName()+" has joined your team!");
         }
     }
+
+    public void removePlayer(GamePlayer player,boolean silent) {
+        players.remove(player);
+        for(GamePlayer player1 : players){
+            player1.getPlayer().sendMessage("§7"+player.getPlayer().getName()+" has left your team!");
+        }
+    }
 }

@@ -11,14 +11,14 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.jetbrains.annotations.NotNull;
+;
 
 import java.util.ArrayList;
 import java.util.Map;
 
 public class PartyCommand implements CommandExecutor {
     @Override
-    public boolean onCommand(@NotNull CommandSender commandSender, @NotNull Command command, @NotNull String s, @NotNull String[] args) {
+    public boolean onCommand( CommandSender commandSender,  Command command,  String s,  String[] args) {
 
         if (!(commandSender instanceof Player bukkitPlayer)) {
             commandSender.sendMessage("§cOnly players can execute this command!");
@@ -94,6 +94,7 @@ public class PartyCommand implements CommandExecutor {
                     Party.sendMessage(player, Component.text("§7You are now chatting in party chat!"));
                 }
                 player.partyChat = !player.partyChat;
+                return true;
             } else if (args[0].equalsIgnoreCase("help")) {
                 sendHelpMessage(player);
             } else {
@@ -106,17 +107,7 @@ public class PartyCommand implements CommandExecutor {
 
                 GamePlayer invited = GamePlayer.getPlayer(bukkitPlayerExact);
 
-                if (invited == player) {
-                    Party.sendMessage(player, Component.text("§cYou cannot invite yourself!"));
-                    return true;
-                }
-
-                if (!player.isInParty()) {
-                    player.setParty(new Party(player));
-                }
-                Party party = player.getParty();
-
-                party.invite(invited, player);
+                if (invite(player, invited)) return true;
             }
         }
 
@@ -131,17 +122,7 @@ public class PartyCommand implements CommandExecutor {
 
                 GamePlayer invited = GamePlayer.getPlayer(bukkitPlayerExact);
 
-                if (invited == player) {
-                    Party.sendMessage(player, Component.text("§cYou cannot invite yourself!"));
-                    return true;
-                }
-
-                if (!player.isInParty()) {
-                    player.setParty(new Party(player));
-                }
-                Party party = player.getParty();
-
-                party.invite(invited, player);
+                if (invite(player, invited)) return true;
 
             } else if (args[0].equalsIgnoreCase("accept")) {
                 if (player.isInParty()) {
@@ -321,6 +302,21 @@ public class PartyCommand implements CommandExecutor {
         return true;
     }
 
+    private boolean invite(GamePlayer player, GamePlayer invited) {
+        if (invited == player) {
+            Party.sendMessage(player, Component.text("§cYou cannot invite yourself!"));
+            return true;
+        }
+
+        if (!player.isInParty()) {
+            player.setParty(new Party(player));
+        }
+        Party party = player.getParty();
+
+        party.invite(invited, player);
+        return false;
+    }
+
     private void sendHelpMessage(GamePlayer player) {
         Party.sendMessage(player,
                 Component.text("§3<>§7 means required§3 []§7 means optional"),
@@ -329,6 +325,7 @@ public class PartyCommand implements CommandExecutor {
                 , Component.text("§3/party list§7 - Lists all the players in your party."),
                 Component.text("§3/party disband§7 - Disbands the party (Leader only)."),
                 Component.text("§3/party leave§7 - Leave your current party."),
+                Component.text("§3/party toggleChat§7 - Toggles party chat on or off."),
                 Component.text("§3/party settings§7 - Lists the settings of the party."),
                 Component.text("§3/party [invite] <player>§7 - Invites a player to your party."),
                 Component.text("§3/party accept <player>§7 - Accepts a party invite."),

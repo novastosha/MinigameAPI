@@ -25,8 +25,6 @@ public class DatabaseConnection {
 
     private Connection makeConnection() {
         try{
-            Class.forName("com.mysql.jdbc.Driver");
-
             return DriverManager.getConnection(
                     "jdbc:mysql://"+host+":"+port+"/"+database,username,password);
         }catch(Exception e){

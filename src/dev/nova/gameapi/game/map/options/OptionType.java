@@ -4,6 +4,8 @@ public enum OptionType {
 
     BOOLEAN,
     STRING,
-    LOCATION
+    LOCATION,
+    INTEGER,
+    ARRAY
 
 }

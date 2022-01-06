@@ -1,15 +1,16 @@
 package dev.nova.gameapi.game.base.instance;
 
-import com.sun.tools.javac.Main;
 import dev.nova.gameapi.GAPIPlugin;
 import dev.nova.gameapi.game.base.GameBase;
+import dev.nova.gameapi.game.base.instance.formats.chat.Message;
 import dev.nova.gameapi.game.base.instance.events.GameEvent;
 import dev.nova.gameapi.game.base.instance.controller.GameController;
 import dev.nova.gameapi.game.base.instance.events.exception.AlreadyInjectedException;
+import dev.nova.gameapi.game.base.instance.formats.tablist.TablistManager;
 import dev.nova.gameapi.game.base.instance.values.base.GameValue;
-import dev.nova.gameapi.game.base.scoreboard.Scoreboard;
-import dev.nova.gameapi.game.base.scoreboard.game.GameScoreboard;
-import dev.nova.gameapi.game.base.scoreboard.player.PlayerScoreboard;
+import dev.nova.gameapi.game.logger.GameLog;
+import dev.nova.gameapi.game.logger.GameLogger;
+import dev.nova.gameapi.game.logger.LogLevel;
 import dev.nova.gameapi.game.manager.GameManager;
 import dev.nova.gameapi.game.map.GameMap;
 import dev.nova.gameapi.game.map.MapInjection;
@@ -38,6 +39,8 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.OverridingMethodsMustInvokeSuper;
 import java.util.*;
+import java.util.function.Function;
+import dev.nova.gameapi.game.base.scoreboard.Scoreboard;
 
 public abstract class GameInstance {
 
@@ -59,19 +62,61 @@ public abstract class GameInstance {
     protected final boolean canBeSpectated;
     protected final Location spectatorLocation;
     protected final ArrayList<GamePlayer> spectators;
-    protected final ArrayList<PlayerScoreboard> playerScoreboards;
+    protected final ArrayList<Scoreboard> playerScoreboards;
     protected final GameController[] controllers;
     protected final ArrayList<GameValue<?>> values;
     public final int eventsTaskID;
-
-    protected Scoreboard scoreboard;
 
     protected GameState gameState;
     protected boolean canStart = true;
     protected boolean ended = false;
     private ArrayList<GameEvent> cloneEvents;
     private GameEvent currentEvent;
-    private int currentEventIndex = 0;
+    private int currentEventIndex = -1;
+
+
+
+    protected Function<Message, String> playersChatFormat = (message -> ChatColor.GRAY + message.player().getPlayer().getName() + ChatColor.RESET + ": " + message.message());
+    protected Function<Message, String> spectatorsChatFormat = (message -> ChatColor.GRAY + "[SPECTATOR] " + message.player().getPlayer().getName() + ChatColor.RESET + ": " + message.message());
+
+    protected Function<GamePlayer, String> tablistHeaderFormat = (player -> ChatColor.GRAY+" You are playing: "+player.getGame().gameBase.getCode(getClass()));
+    protected Function<GamePlayer, String> tablistLowerFormat = (player -> ChatColor.GRAY+" Players Left: "+player.getGame().getPlayers().size());
+
+    public Function<Message, String> getPlayersChatFormat() {
+        return playersChatFormat;
+    }
+
+    public Function<Message, String> getSpectatorsChatFormat() {
+        return spectatorsChatFormat;
+    }
+
+    public Function<GamePlayer, String> getTablistHeaderFormat() {
+        return tablistHeaderFormat;
+    }
+
+    public Function<GamePlayer, String> getTablistLowerFormat() {
+        return tablistLowerFormat;
+    }
+
+    public void setTablistHeaderFormat(Function<GamePlayer, String> tablistHeaderFormat) {
+        this.tablistHeaderFormat = tablistHeaderFormat;
+    }
+
+    public void setTablistLowerFormat(Function<GamePlayer, String> tablistLowerFormat) {
+        this.tablistLowerFormat = tablistLowerFormat;
+    }
+
+    public boolean isTablistFormatNull() {
+        return tablistHeaderFormat == null || tablistLowerFormat == null;
+    }
+
+    protected void setPlayersChatFormat(Function<Message, String> playersChatFormat) {
+        this.playersChatFormat = playersChatFormat;
+    }
+
+    protected void setSpectatorChatFormat(Function<Message, String> spectatorsChatFormat) {
+        this.spectatorsChatFormat = spectatorsChatFormat;
+    }
 
     /**
      * {@inheritDoc}
@@ -98,7 +143,8 @@ public abstract class GameInstance {
 
         this.map = map != null ? map.newMap(this) : null;
 
-        if(this.map != null) Arrays.stream(this.map.getCustomInjections().toArray(new MapInjection[0])).forEach(MapInjection::onInitialize);
+        if (this.map != null)
+            Arrays.stream(this.map.getCustomInjections().toArray(new MapInjection[0])).forEach(MapInjection::onInitialize);
 
 
         this.gameState = GameState.CLOSED;
@@ -110,22 +156,23 @@ public abstract class GameInstance {
         this.eventsTaskID = Bukkit.getServer().getScheduler().scheduleSyncRepeatingTask(GAPIPlugin.getPlugin(GAPIPlugin.class), new Runnable() {
             @Override
             public void run() {
+                ArrayList<GameEvent> toRemove = new ArrayList<>();
 
-                    if(currentEvent == null){
-                        currentEvent = cloneEvents.get(0);
-                        cloneEvents.remove(currentEvent);
-                        currentEvent.onStart();
-                    }
+                for (GameEvent event : cloneEvents) {
+                    event.durationLeft--;
 
-                    if(currentEvent.durationLeft <= 0){
-                        currentEvent.onEnd();
-                        currentEvent = cloneEvents.get(0);
+                    if (event.durationLeft == 0) {
+                        currentEvent = event;
+                        toRemove.add(event);
+                        currentEvent.onEvent();
                         currentEventIndex++;
-                    }else{
-                        currentEvent.durationLeft--;
                     }
+                }
+
+                cloneEvents.removeAll(toRemove);
+                toRemove.clear();
             }
-        },0L,20L);
+        }, 0L, 20L);
     }
 
     public int getCurrentEventIndex() {
@@ -151,23 +198,11 @@ public abstract class GameInstance {
         return null;
     }
 
-    protected GameValue<?> getSafeValue(String id){
+    protected GameValue<?> getSafeValue(String id) {
         for (GameValue<?> value : values) {
             if (value.getId().equalsIgnoreCase(id)) return value;
         }
         return null;
-    }
-
-    protected void setGameScoreboard(GameScoreboard scoreboard) {
-        this.scoreboard = scoreboard;
-    }
-
-    protected void addPlayerScoreboard(PlayerScoreboard scoreboard) {
-        if (!players.contains(scoreboard.getPlayer()) && !spectators.contains(scoreboard.getPlayer())) {
-            return;
-        }
-
-        playerScoreboards.add(scoreboard);
     }
 
     public GameController[] getControllers() {
@@ -281,12 +316,14 @@ public abstract class GameInstance {
                 gameBase.moveToLobby(player);
                 player.setGame(null);
                 player.getPlayer().setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
+                TablistManager.resetTablist(player);
             }
 
             for (GamePlayer player : spectators) {
                 gameBase.moveToLobby(player);
                 player.setGame(null);
                 player.getPlayer().setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
+                TablistManager.resetTablist(player);
             }
 
             if (map != null) {
@@ -299,13 +336,6 @@ public abstract class GameInstance {
                 map.deleteWorld(map.getBukkitWorld().getWorldFolder());
 
 
-            }
-
-
-            if(playerScoreboards != null){
-                for(PlayerScoreboard scoreboard : playerScoreboards){
-                    Bukkit.getServer().getScheduler().cancelTask(scoreboard.eventTaskID);
-                }
             }
 
             playerScoreboards.clear();
@@ -321,19 +351,28 @@ public abstract class GameInstance {
         }
     }
 
-    public PlayerScoreboard getScoreboard(GamePlayer player){
-        for(PlayerScoreboard scoreboard : playerScoreboards){
-            if(scoreboard.getPlayer().getPlayer().getUniqueId().toString().equals(player.getPlayer().getUniqueId().toString())){
+    public Scoreboard getScoreboard(GamePlayer player) {
+        for (Scoreboard scoreboard : playerScoreboards) {
+            if (scoreboard.getPlayers().contains(player.getPlayer())) {
                 return scoreboard;
             }
         }
         return null;
     }
 
-    public void postEnd() {
-        canStart = false;
-        this.gameBase.removeInstance(this);
-        onEnd();
+    public void addScoreboard(GamePlayer player,Scoreboard scoreboard){
+        playerScoreboards.add(scoreboard);
+        scoreboard.addPlayer(player.getPlayer());
+    }
+
+    public void end(String reason) {
+        GameLogger.log(new GameLog(gameBase, LogLevel.ERROR, "Instance: " + gameID + " ended unexpectedly because " + reason, true));
+        if (!hasEnded()) {
+            utils.sendMessage("§cSorry, an unexpected error happened!");
+            canStart = false;
+            this.gameBase.removeInstance(this);
+            onEnd();
+        }
     }
 
     @OverridingMethodsMustInvokeSuper
@@ -346,7 +385,7 @@ public abstract class GameInstance {
             injected = true;
         }
 
-        if(!injected){
+        if (!injected) {
             this.events.add(event);
         }
     }
@@ -413,11 +452,7 @@ public abstract class GameInstance {
         return utils;
     }
 
-    public Scoreboard getGameScoreboard() {
-        return scoreboard;
-    }
-
-    public ArrayList<PlayerScoreboard> getPlayerScoreboards() {
+    public ArrayList<Scoreboard> getPlayerScoreboards() {
         return playerScoreboards;
     }
 
@@ -459,6 +494,10 @@ public abstract class GameInstance {
 
     public GameEvent getCurrentEvent() {
         return currentEvent;
+    }
+
+    public Function<Message, String> getChatFormat(GamePlayer player) {
+        return spectators.contains(player) ? getSpectatorsChatFormat() : getPlayersChatFormat();
     }
 
     public static class GameUtils {
@@ -575,6 +614,8 @@ public abstract class GameInstance {
                 spectators.remove(player);
                 player.getPlayer().sendMessage("§7You left the game with id: " + gameID);
                 player.setGame(null);
+                player.getPlayer().setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
+                TablistManager.resetTablist(player);
             }
         }
     }

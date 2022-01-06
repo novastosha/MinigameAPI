@@ -7,11 +7,6 @@ commands:
   queue:
     description: Queues a player in a game!
     usage: "&c/queue <game> <instance_name>"
-  setOption:
-    description: Sets an option of a map.
-    usage: "&c/set <>"
-  map:
-    description: Edits a map.
   leave:
     description: Makes a player leave a game!
     aliases:
@@ -26,3 +21,11 @@ commands:
     description: Starts a queue forcivly
     aliases:
       - fs
+  revive:
+    description: Revives you!
+  spectator:
+    description: Makes you a ghost.
+  wand:
+    description: A wand.
+  saveSchematic:
+    description: Saves a schematic to a file!

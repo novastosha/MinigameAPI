@@ -1,6 +1,7 @@
 package dev.nova.gameapi.game.base;
 
 import dev.nova.gameapi.GAPIPlugin;
+import dev.nova.gameapi.game.base.init.InitResultInfo;
 import dev.nova.gameapi.game.base.instance.GameInstance;
 import dev.nova.gameapi.game.base.lobby.Lobby;
 import dev.nova.gameapi.game.base.lobby.core.LobbyBase;
@@ -27,26 +28,27 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.*;
 
 public abstract class GameBase {
 
     private static final Random RANDOM = new Random();
 
-    private final String displayName;
-    private final String codeName;
-    private final Map<String, ArrayList<GameInstance>> runningInstances;
-    private final ArrayList<GameMap> gameMaps;
-    private final ChatColor gameTheme;
-    private final Map<String, Class<? extends GameInstance>> instances;
-    private final Plugin plugin;
-    private final YamlConfiguration lobbyConfiguration;
-    private final ArrayList<Lobby> lobbyInstances;
-    private final String[] databasesRequired;
-    private final DatabaseConnection[] databases;
-    private LobbyBase lobbyBase;
-    private boolean lobbySupport;
-    private final File lobbyFile;
+    protected final String displayName;
+    protected final String codeName;
+    protected final Map<String, ArrayList<GameInstance>> runningInstances;
+    protected final Map<String,ArrayList<GameMap>> gameMaps;
+    protected final ChatColor gameTheme;
+    protected final Map<String, Class<? extends GameInstance>> instances;
+    protected final Plugin plugin;
+    protected final YamlConfiguration lobbyConfiguration;
+    protected final ArrayList<Lobby> lobbyInstances;
+    protected final String[] databasesRequired;
+    protected final DatabaseConnection[] databases;
+    protected LobbyBase lobbyBase;
+    protected boolean lobbySupport;
+    protected final File lobbyFile;
 
     public GameBase(Plugin plugin, String codeName, String displayName, Class<? extends GameInstance>[] gameInstances, ChatColor gameTheme, boolean lobbySupport,String[] databases) {
         this.runningInstances = new HashMap<>();
@@ -55,7 +57,7 @@ public abstract class GameBase {
         this.codeName = codeName;
         this.plugin = plugin;
         this.displayName = displayName;
-        this.gameMaps = new ArrayList<>();
+        this.gameMaps = new HashMap<>();
         this.lobbyInstances = new ArrayList<Lobby>();
         this.gameTheme = gameTheme;
         this.instances = new HashMap<>();
@@ -83,6 +85,7 @@ public abstract class GameBase {
 
             if (world != null && spawnData != null) {
                 this.lobbyBase = new LobbyBase(this, world, spawnData);
+
             } else {
                 this.lobbySupport = false;
             }
@@ -95,7 +98,30 @@ public abstract class GameBase {
         for (Class<? extends GameInstance> instance : gameInstances) {
             String code = getCode(instance);
             if (code != null) {
+                try {
+                    Method method = instance.getMethod("onInitialize",GameBase.class);
+
+                    GameLogger.log(new GameLog(this,LogLevel.INFO,"Invoking onInitialize on game instance: "+code,true));
+                    method.setAccessible(true);
+                    Object obj = method.invoke(null,this);
+                    if(obj instanceof InitResultInfo info){
+                        if(info.getResult().equals(InitResultInfo.Result.FAILED)){
+                            GameLogger.log(new GameLog(this,LogLevel.ERROR,"Invoking onInitialize failed on game instance: "+code,true));
+                            if(info.getThrowable() != null) info.getThrowable().printStackTrace();
+                            continue;
+                        }
+                    }
+                    method.setAccessible(false);
+
+                } catch (NoSuchMethodException | IllegalAccessException ignored) {
+
+                }catch (InvocationTargetException e){
+                    GameLogger.log(new GameLog(this,LogLevel.ERROR,"Invoking onInitialize failed on game instance: "+code+" "+e.getClass().getSimpleName(),true));
+                    continue;
+                }
+
                 instances.put(code, instance);
+                gameMaps.put(code,new ArrayList<>());
                 GameLogger.log(new GameLog(this, LogLevel.INFO, "Added game instance: " + code + " to the game!", true));
                 continue;
             }
@@ -103,6 +129,16 @@ public abstract class GameBase {
         }
     }
 
+    protected void onLobbyCreation(Lobby lobby) {
+
+    }
+
+    /**
+     *
+     * Loads the databases from the databases file.
+     *
+     * @return The databases.
+     */
     private DatabaseConnection[] loadDatabases() {
         if(databasesRequired == null) return new DatabaseConnection[0];
         File databaseFile = Files.getGameDatabasesFile(codeName,true);
@@ -191,6 +227,7 @@ public abstract class GameBase {
         if (lobbySupport) {
             Lobby lobby = new Lobby(lobbyBase, lobbyInstances.size() + 1);
             lobbyInstances.add(lobby);
+            onLobbyCreation(lobby);
             return lobby;
         } else {
             Bukkit.getServer().getConsoleSender().sendMessage("§7[§bGameAPI§7] Game: " + codeName + " invoked \"createLobbyInstance\" when lobby support was disabled!");
@@ -314,7 +351,7 @@ public abstract class GameBase {
         return gameTheme;
     }
 
-    public ArrayList<GameMap> getGameMaps() {
+    public Map<String, ArrayList<GameMap>> getGameMaps() {
         return gameMaps;
     }
 
@@ -341,19 +378,20 @@ public abstract class GameBase {
      * @return The map with the according name. (can be null if none found)
      */
     @Nullable
-    public GameMap getMap(String mapName) {
-        for (GameMap map : gameMaps) {
+    public GameMap getMap(String mode,String mapName) {
+        for (GameMap map : gameMaps.get(mode)) {
             if (map.getCodeName().equalsIgnoreCase(mapName)) return map;
         }
         return null;
     }
 
-    public GameMap random() {
-        return gameMaps.get(RANDOM.nextInt(gameMaps.size()));
+    public GameMap randomMap(String mode) {
+        if(gameMaps.get(mode).size() == 1) return gameMaps.get(mode).get(0);
+        return gameMaps.get(mode).get(RANDOM.nextInt(gameMaps.get(mode).size()));
     }
 
     /**
-     * @param map The map to create the instnace on. (can be null)
+     * @param map The map to create the instance on. (can be null)
      * @return A new game instance.
      */
     @OverridingMethodsMustInvokeSuper
@@ -391,8 +429,8 @@ public abstract class GameBase {
         }
     }
 
-    public void addMap(GameMap map) {
-        gameMaps.add(map);
+    public void addMap(GameMap map,String mode) {
+        gameMaps.get(mode).add(map);
     }
 
     public void removeInstance(GameInstance gameInstance) {

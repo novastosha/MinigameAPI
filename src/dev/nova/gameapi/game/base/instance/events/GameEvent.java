@@ -29,8 +29,6 @@ public abstract class GameEvent {
         }
     }
 
-    public abstract void onStart();
-    public abstract void onTick();
-    public abstract void onEnd();
+    public abstract void onEvent();
 
 }

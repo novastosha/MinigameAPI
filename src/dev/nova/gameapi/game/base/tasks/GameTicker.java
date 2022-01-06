@@ -2,6 +2,8 @@ package dev.nova.gameapi.game.base.tasks;
 
 import dev.nova.gameapi.game.base.GameBase;
 import dev.nova.gameapi.game.base.instance.GameInstance;
+import dev.nova.gameapi.game.base.instance.formats.tablist.TablistManager;
+import dev.nova.gameapi.game.base.scoreboard.Scoreboard;
 import dev.nova.gameapi.game.manager.GameManager;
 import dev.nova.gameapi.game.queue.Queue;
 
@@ -38,9 +40,11 @@ public class GameTicker implements Runnable {
                     for (GameInstance instance : instances) {
                         instance.tick();
 
-                        if(instance.getCurrentEvent() != null){
-                            instance.getCurrentEvent().onTick();
+                        for(Scoreboard scoreboard : instance.getPlayerScoreboards()) {
+                            scoreboard.updateScoreboard();
                         }
+
+                        TablistManager.setHeaderAndFooter(instance);
 
                         assert instance.getGameMap() != null && instance.getMap() != null;
 

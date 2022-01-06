@@ -1,5 +1,6 @@
-package dev.nova.gameapi.party.listener;
+package dev.nova.gameapi.game.base.listener;
 
+import dev.nova.gameapi.game.base.instance.formats.chat.Message;
 import dev.nova.gameapi.game.player.GamePlayer;
 import dev.nova.gameapi.party.Party;
 import dev.nova.gameapi.party.settings.PartySettings;
@@ -25,6 +26,10 @@ public class ChatListener implements Listener {
             for(GamePlayer player1 : player.getParty().getPartyMembers().keySet()){
                 player1.getPlayer().sendMessage("§3"+player.getPlayer().getName()+"§7: "+event.getMessage());
             }
+            event.setCancelled(true);
+        }else if(player.isInGame()){
+            String message = player.getGame().getChatFormat(player).apply(new Message(player,event.getMessage()));
+            player.getGame().getUtils().sendMessage(message);
             event.setCancelled(true);
         }
     }

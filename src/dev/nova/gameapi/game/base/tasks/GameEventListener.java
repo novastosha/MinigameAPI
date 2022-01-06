@@ -4,7 +4,6 @@ import dev.nova.gameapi.game.base.GameBase;
 import dev.nova.gameapi.game.base.instance.GameInstance;
 import dev.nova.gameapi.game.base.instance.GameState;
 import dev.nova.gameapi.game.base.instance.eventListener.GlobalEventListener;
-import dev.nova.gameapi.game.base.scoreboard.player.PlayerScoreboardLine;
 import dev.nova.gameapi.game.manager.GameManager;
 import dev.nova.gameapi.game.player.GamePlayer;
 import org.bukkit.World;

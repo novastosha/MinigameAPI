@@ -1,5 +1,6 @@
 package dev.nova.gameapi.game.manager;
 
+import dev.nova.gameapi.GAPIPlugin;
 import dev.nova.gameapi.game.base.GameBase;
 import dev.nova.gameapi.game.logger.GameLog;
 import dev.nova.gameapi.game.logger.GameLogger;
@@ -28,8 +29,8 @@ public final class GameManager {
     public static final ArrayList<GameBase> GAMES = new ArrayList<GameBase>();
 
     public static void loadGames() {
-        for(File file : Objects.requireNonNull(Files.PLUGINS.getFile().listFiles())){
-            if(file.getName().endsWith(".jar") && file.isFile()){
+        for (File file : Objects.requireNonNull(Files.PLUGINS.getFile().listFiles())) {
+            if (file.getName().endsWith(".jar") && file.isFile()) {
                 loadGame(file);
             }
         }
@@ -37,7 +38,7 @@ public final class GameManager {
 
     @SuppressWarnings("unchecked")
     private static void loadGame(File file) {
-        try{
+        try {
             JarFile jar = new JarFile(file);
 
             JarEntry pluginEntry = jar.getJarEntry("plugin.yml");
@@ -76,6 +77,11 @@ public final class GameManager {
             try {
 
                 GameBase gameBase = constructor.newInstance();
+
+                if (GAPIPlugin.isCoinsSystemHooked()) {
+
+                }
+
                 Files.getGameFolder(gameBase.getCodeName()).mkdirs();
                 if (gameBase.onInitialize()) {
                     GAMES.add(gameBase);
@@ -83,54 +89,58 @@ public final class GameManager {
                     GameLogger.log(new GameLog(gameBase, LogLevel.INFO, "Loading maps...", false));
                     Bukkit.getServer().getConsoleSender().sendMessage("§7[§bGameAPI§7] Loading maps for game: " + gameBase.getCodeName());
 
-                    File gameMaps = Files.getGameMapsFolder(gameBase.getCodeName());
 
-                    if (!gameMaps.exists()) {
-                        gameMaps.mkdirs();
-                    }
+                    for (String mode : gameBase.getInstances().keySet()) {
 
-                    for (File mapYml : Objects.requireNonNull(gameMaps.listFiles())) {
-                        if (mapYml.isFile() && !mapYml.getName().startsWith("-") && mapYml.getName().endsWith(".yml")) {
+                        File gameMaps = Files.getGameMapsFolder(gameBase.getCodeName(),mode);
 
-                            String fileName = mapYml.getName().replaceFirst(".yml", "");
+                        if (!gameMaps.exists()) {
+                            gameMaps.mkdirs();
+                        }
 
-                            File world = new File(Bukkit.getWorldContainer(), fileName);
-                            if (world.exists()) {
-                                GameMap.loadWorld(fileName);
-                            } else {
-                                Bukkit.getServer().getConsoleSender().sendMessage("§7[§bGameAPI§7] Unable to load map named: " + mapYml.getName() + " because the file name does not match the name of any world!");
-                                continue;
-                            }
+                        for (File mapYml : Objects.requireNonNull(gameMaps.listFiles())) {
+                            if (mapYml.isFile() && !mapYml.getName().startsWith("-") && mapYml.getName().endsWith(".yml")) {
 
-                            YamlConfiguration configuration = new YamlConfiguration();
+                                String fileName = mapYml.getName().replaceFirst(".yml", "");
 
-                            try {
-                                configuration.load(mapYml);
-                            } catch (IOException | InvalidConfigurationException e) {
-                                GameLogger.log(new GameLog(gameBase, LogLevel.INFO, "Unable to load map with file name: " + mapYml.getName(), false));
-                                continue;
-                            }
+                                File world = new File(Bukkit.getWorldContainer(), fileName);
+                                if (world.exists()) {
+                                    GameMap.loadWorld(fileName);
+                                } else {
+                                    Bukkit.getServer().getConsoleSender().sendMessage("§7[§bGameAPI§7] Unable to load map named: " + mapYml.getName() + " because the file name does not match the name of any world!");
+                                    continue;
+                                }
 
-                            ConfigurationSection data = configuration.getConfigurationSection("data");
+                                YamlConfiguration configuration = new YamlConfiguration();
 
-                            if (data == null) {
-                                continue;
-                            }
+                                try {
+                                    configuration.load(mapYml);
+                                } catch (IOException | InvalidConfigurationException e) {
+                                    GameLogger.log(new GameLog(gameBase, LogLevel.INFO, "Unable to load map with file name: " + mapYml.getName(), false));
+                                    continue;
+                                }
 
-                            if (data.contains("world") && data.contains("display-name")
-                                    && data.contains("code-name") && data.contains("player-limit") && data.contains("world")) {
-                                gameBase.addMap(new GameMap(gameBase, mapYml, data));
-                                GameLogger.log(new GameLog(gameBase, LogLevel.INFO, "Loaded map: " + data.getString("code-name"), false));
-                                Bukkit.getServer().getConsoleSender().sendMessage("§7[§bGameAPI§7] Map: " + data.getString("code-name") + " has been loaded successfully");
-                            } else {
-                                GameLogger.log(new GameLog(gameBase, LogLevel.INFO, "Unable to load map with file name: " + mapYml.getName() + " because it does not contain necessary data.", false));
-                                continue;
+                                ConfigurationSection data = configuration.getConfigurationSection("data");
+
+                                if (data == null) {
+                                    continue;
+                                }
+
+                                if (data.contains("world") && data.contains("display-name")
+                                        && data.contains("code-name") && data.contains("player-limit") && data.contains("world")) {
+                                    gameBase.addMap(new GameMap(gameBase, mapYml, data),mode);
+                                    GameLogger.log(new GameLog(gameBase, LogLevel.INFO, "Loaded map: " + data.getString("code-name"), false));
+                                    Bukkit.getServer().getConsoleSender().sendMessage("§7[§bGameAPI§7] Map: " + data.getString("code-name") + " has been loaded successfully");
+                                } else {
+                                    GameLogger.log(new GameLog(gameBase, LogLevel.INFO, "Unable to load map with file name: " + mapYml.getName() + " because it does not contain necessary data.", false));
+                                    continue;
+                                }
                             }
                         }
                     }
-                }else {
-                    GameLogger.log(new GameLog(gameBase, LogLevel.ERROR,"Game did not initialize properly!", false));
-                    Bukkit.getServer().getConsoleSender().sendMessage("§7[§bGameAPI§7] Game: §b"+gameBase.getCodeName()+"§7 did not initialize properly!");
+                } else {
+                    GameLogger.log(new GameLog(gameBase, LogLevel.ERROR, "Game did not initialize properly!", false));
+                    Bukkit.getServer().getConsoleSender().sendMessage("§7[§bGameAPI§7] Game: §b" + gameBase.getCodeName() + "§7 did not initialize properly!");
                     return;
                 }
 

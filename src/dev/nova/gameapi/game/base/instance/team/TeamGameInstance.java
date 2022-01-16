@@ -7,7 +7,6 @@ import dev.nova.gameapi.game.player.GamePlayer;
 import org.bukkit.ChatColor;
 ;
 
-import javax.annotation.OverridingMethodsMustInvokeSuper;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.function.Function;
@@ -42,7 +41,6 @@ public abstract class TeamGameInstance extends GameInstance {
     }
 
     @Override
-    @OverridingMethodsMustInvokeSuper
     public void onStart() {
 
         for(GamePlayer player : players) {

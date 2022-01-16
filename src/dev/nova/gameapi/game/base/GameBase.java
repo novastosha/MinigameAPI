@@ -22,8 +22,6 @@ import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.Plugin;
 
-import javax.annotation.Nullable;
-import javax.annotation.OverridingMethodsMustInvokeSuper;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -377,7 +375,6 @@ public abstract class GameBase {
      * @param mapName The name of the map to search for.
      * @return The map with the according name. (can be null if none found)
      */
-    @Nullable
     public GameMap getMap(String mode,String mapName) {
         for (GameMap map : gameMaps.get(mode)) {
             if (map.getCodeName().equalsIgnoreCase(mapName)) return map;
@@ -394,8 +391,7 @@ public abstract class GameBase {
      * @param map The map to create the instance on. (can be null)
      * @return A new game instance.
      */
-    @OverridingMethodsMustInvokeSuper
-    public GameInstance newInstance(String codeName, @Nullable GameMap map, GamePlayer... initPlayers) {
+    public GameInstance newInstance(String codeName, GameMap map, GamePlayer... initPlayers) {
         try {
             Class<? extends GameInstance> instanceClass = instances.get(codeName);
 

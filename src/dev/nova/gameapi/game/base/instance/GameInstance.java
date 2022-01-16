@@ -35,9 +35,6 @@ import org.bukkit.event.player.PlayerPickupArrowEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.weather.WeatherChangeEvent;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import javax.annotation.OverridingMethodsMustInvokeSuper;
 import java.util.*;
 import java.util.function.Function;
 import dev.nova.gameapi.game.base.scoreboard.Scoreboard;
@@ -123,7 +120,7 @@ public abstract class GameInstance {
      *
      * @param map The map the players are going to play in.
      */
-    public GameInstance(String displayName, @Nonnull String gameBase, GameMap map, String[] gameDescription, String gameBrief, boolean canBeSpectated, GameController[] gameControllers) {
+    public GameInstance(String displayName, String gameBase, GameMap map, String[] gameDescription, String gameBrief, boolean canBeSpectated, GameController[] gameControllers) {
         this.gameBase = GameManager.getGame(gameBase);
         this.canBeSpectated = canBeSpectated;
         this.values = new ArrayList<GameValue<?>>();
@@ -224,7 +221,6 @@ public abstract class GameInstance {
         return canBeSpectated;
     }
 
-    @Nullable
     public Location getSpectatorLocation() {
         return spectatorLocation;
     }
@@ -266,7 +262,6 @@ public abstract class GameInstance {
      *
      * @param player The player that joined.
      */
-    @OverridingMethodsMustInvokeSuper
     public void join(GamePlayer player) {
         if (canStart) {
             players.add(player);
@@ -279,7 +274,6 @@ public abstract class GameInstance {
         }
     }
 
-    @OverridingMethodsMustInvokeSuper
     public void onStart() {
         if (canStart) {
             this.cloneEvents = new ArrayList<>(events);
@@ -301,7 +295,6 @@ public abstract class GameInstance {
         }
     }
 
-    @OverridingMethodsMustInvokeSuper
     public void onEnd() {
         if (!ended) {
             this.gameState = GameState.ENDED;
@@ -375,7 +368,6 @@ public abstract class GameInstance {
         }
     }
 
-    @OverridingMethodsMustInvokeSuper
     public void addEvent(GameEvent event) {
         boolean injected = false;
         try {
@@ -390,7 +382,6 @@ public abstract class GameInstance {
         }
     }
 
-    @OverridingMethodsMustInvokeSuper
     public void leave(GamePlayer player) {
 
 
@@ -430,7 +421,6 @@ public abstract class GameInstance {
     }
 
 
-    @Nullable
     public GameMap.Map getMap() {
         return map;
     }
@@ -456,7 +446,6 @@ public abstract class GameInstance {
         return playerScoreboards;
     }
 
-    @OverridingMethodsMustInvokeSuper
     public void joinSpectator(GamePlayer player) {
         if (spectatorLocation != null) {
             player.getPlayer().teleport(spectatorLocation);
@@ -467,7 +456,6 @@ public abstract class GameInstance {
         }
     }
 
-    @OverridingMethodsMustInvokeSuper
     public void onValueUpdate(GameValue<?> tGameValue) {
 
     }
@@ -528,7 +516,6 @@ public abstract class GameInstance {
 
     }
 
-    @OverridingMethodsMustInvokeSuper
     public void onEvent(Event event) {
 
         if (event instanceof BlockPlaceEvent) {

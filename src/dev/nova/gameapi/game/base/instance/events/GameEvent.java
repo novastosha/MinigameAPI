@@ -3,8 +3,6 @@ package dev.nova.gameapi.game.base.instance.events;
 import dev.nova.gameapi.game.base.instance.GameInstance;
 import dev.nova.gameapi.game.base.instance.events.exception.AlreadyInjectedException;
 
-import javax.annotation.OverridingMethodsMustInvokeSuper;
-
 public abstract class GameEvent {
 
     public final int duration;
@@ -20,7 +18,6 @@ public abstract class GameEvent {
         this.durationLeft = duration;
     }
 
-    @OverridingMethodsMustInvokeSuper
     public void injectEvent(GameInstance instance) throws AlreadyInjectedException {
         if(this.instance == null){
             this.instance = instance;

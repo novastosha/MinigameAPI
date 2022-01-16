@@ -1,8 +1,6 @@
-package dev.nova.gameapi.game.base.instance.commands.gui.api.item;
+package dev.nova.gameapi.utils.api.gui.item;
 
 import org.bukkit.inventory.ItemStack;
-
-import javax.annotation.Nullable;
 
 public class Item<T> {
 
@@ -38,7 +36,6 @@ public class Item<T> {
         return this;
     }
 
-    @Nullable
     public ClickAction getAction() {
         return action;
     }

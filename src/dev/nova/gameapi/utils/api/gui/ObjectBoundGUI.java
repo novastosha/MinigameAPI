@@ -1,6 +1,6 @@
-package dev.nova.gameapi.game.base.instance.commands.gui.api;
+package dev.nova.gameapi.utils.api.gui;
 
-import dev.nova.gameapi.game.base.instance.commands.gui.api.item.Item;
+import dev.nova.gameapi.utils.api.gui.item.Item;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -93,5 +93,10 @@ public abstract class ObjectBoundGUI implements Listener {
         if(inventory == null) return;
 
         player.openInventory(inventory);
+    }
+
+    public void clear() {
+        items.clear();
+        inventory.clear();
     }
 }

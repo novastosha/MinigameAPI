@@ -1,4 +1,4 @@
-package dev.nova.gameapi.game.base.instance.commands.gui.api.item;
+package dev.nova.gameapi.utils.api.gui.item;
 
 import org.bukkit.event.inventory.InventoryClickEvent;
 

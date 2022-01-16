@@ -2,7 +2,6 @@ package dev.nova.gameapi.game.base.instance.values.base;
 
 import dev.nova.gameapi.game.base.instance.GameInstance;
 
-import javax.annotation.OverridingMethodsMustInvokeSuper;
 
 public abstract class GameValue<T> {
 
@@ -42,7 +41,6 @@ public abstract class GameValue<T> {
         instance.onValueUpdate(this);
     }
 
-    @OverridingMethodsMustInvokeSuper
     public boolean autoSetValue() {
         instance.onValueUpdate(this);
         return false;

@@ -19,3 +19,6 @@ coins-support:
 
 #Enables stuff like the wand and save command.
 enable-schematic-commands: true
+
+#Poll system
+maximum-poll-answers: 5

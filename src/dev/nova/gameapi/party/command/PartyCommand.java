@@ -2,11 +2,13 @@ package dev.nova.gameapi.party.command;
 
 import dev.nova.gameapi.game.player.GamePlayer;
 import dev.nova.gameapi.party.Party;
+import dev.nova.gameapi.party.poll.Poll;
+import dev.nova.gameapi.party.poll.PollAnswer;
 import dev.nova.gameapi.party.role.PartyRole;
 import dev.nova.gameapi.party.settings.PartySettings;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.TextComponent;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -18,7 +20,7 @@ import java.util.Map;
 
 public class PartyCommand implements CommandExecutor {
     @Override
-    public boolean onCommand( CommandSender commandSender,  Command command,  String s,  String[] args) {
+    public boolean onCommand(CommandSender commandSender, Command command, String s, String[] args) {
 
         if (!(commandSender instanceof Player bukkitPlayer)) {
             commandSender.sendMessage("§cOnly players can execute this command!");
@@ -33,7 +35,14 @@ public class PartyCommand implements CommandExecutor {
         }
 
         if (args.length == 1) {
-            if (args[0].equalsIgnoreCase("list")) {
+            if (args[0].equalsIgnoreCase("create")) {
+                if (!player.isInParty()) {
+                    Party.sendMessage(player, Component.text(ChatColor.GREEN + "Created an empty party!"));
+                    player.setParty(new Party(player));
+                    return true;
+                }
+                Party.sendMessage(player, Component.text(ChatColor.RED + "You are already in a party!"));
+            } else if (args[0].equalsIgnoreCase("list")) {
                 if (!player.isInParty()) {
                     Party.sendMessage(player, Component.text("§cYou are not in a party!"));
                     return true;
@@ -47,7 +56,7 @@ public class PartyCommand implements CommandExecutor {
                 }
 
                 Party.sendMessage(player, messages.toArray(new Component[0]));
-
+                return true;
             } else if (args[0].equalsIgnoreCase("disband")) {
 
                 if (!player.isInParty()) {
@@ -97,6 +106,30 @@ public class PartyCommand implements CommandExecutor {
                 return true;
             } else if (args[0].equalsIgnoreCase("help")) {
                 sendHelpMessage(player);
+            } else if (args[0].equalsIgnoreCase("polls")) {
+                if (!player.isInParty()) {
+                    Party.sendMessage(player, Component.text(ChatColor.RED + "You can only use this command while in a party!"));
+                    return true;
+                }
+
+                if (player.getParty().getLeader() != player) {
+                    Party.sendMessage(player, Component.text(ChatColor.RED + "Only the party leader can see polls!"));
+                    return true;
+                }
+
+                player.getParty().displayPolls();
+            } else if (args[0].equalsIgnoreCase("poll")) {
+                if (!player.isInParty()) {
+                    Party.sendMessage(player, Component.text(ChatColor.RED + "You can only use this command while in a party!"));
+                    return true;
+                }
+
+                if (player.getParty().getLeader() != player) {
+                    Party.sendMessage(player, Component.text(ChatColor.RED + "Only the party leader can create polls!"));
+                    return true;
+                }
+
+                player.getParty().createPoll();
             } else {
                 Player bukkitPlayerExact = Bukkit.getPlayer(args[0]);
 
@@ -109,9 +142,7 @@ public class PartyCommand implements CommandExecutor {
 
                 if (invite(player, invited)) return true;
             }
-        }
-
-        if (args.length == 2) {
+        } else if (args.length == 2) {
             if (args[0].equalsIgnoreCase("invite")) {
                 Player bukkitPlayerExact = Bukkit.getPlayerExact(args[1]);
 
@@ -251,8 +282,8 @@ public class PartyCommand implements CommandExecutor {
                 }
 
                 party.transfer(toTransfer);
-            } else if (args[0].equalsIgnoreCase("yoink")){
-                if(player.getPlayer().hasPermission("gameapi.party.yoink")){
+            } else if (args[0].equalsIgnoreCase("yoink")) {
+                if (player.getPlayer().hasPermission("gameapi.party.yoink")) {
                     Player bukkitPlayerExact = Bukkit.getPlayerExact(args[1]);
 
                     if (bukkitPlayerExact == null) {
@@ -268,34 +299,80 @@ public class PartyCommand implements CommandExecutor {
 
                     Party party = player.getParty();
 
-                    if(party.getPartyMembers().containsKey(toYoink)){
-                        Party.sendMessage(player,Component.text("§c"+args[1]+" is already in your party!"));
+                    if (party.getPartyMembers().containsKey(toYoink)) {
+                        Party.sendMessage(player, Component.text("§c" + args[1] + " is already in your party!"));
                         return true;
                     }
 
                     Party otherParty = toYoink.getParty();
-                    if(otherParty != null){
-                        if(otherParty.getLeader() == toYoink){
+                    if (otherParty != null) {
+                        if (otherParty.getLeader() == toYoink) {
                             otherParty.disband();
-                        }else{
+                        } else {
                             otherParty.leave(toYoink);
                         }
                     }
 
-                    party.getPartyMembers().put(toYoink,PartyRole.MEMBER);
+                    party.getPartyMembers().put(toYoink, PartyRole.MEMBER);
                     toYoink.setParty(party);
 
-                    Party.sendMessage(toYoink,Component.text("§7You have been yoinked by: §3"+player.getPlayer().getName()+" §7into their party!"));
-                    party.sendGlobalMessage(Component.text("§3"+toYoink.getPlayer().getName()+" §7has been yoinked into the party by: §3"+bukkitPlayer.getName()));
+                    Party.sendMessage(toYoink, Component.text("§7You have been yoinked by: §3" + player.getPlayer().getName() + " §7into their party!"));
+                    party.sendGlobalMessage(Component.text("§3" + toYoink.getPlayer().getName() + " §7has been yoinked into the party by: §3" + bukkitPlayer.getName()));
 
-                }else{
-                    Party.sendMessage(player,Component.text("§cYou don't have permission to execute this command!"));
+                } else {
+                    Party.sendMessage(player, Component.text("§cYou don't have permission to execute this command!"));
                     return true;
                 }
-            }else{
+            } else {
                 sendHelpMessage(player);
             }
-        }else{
+        } else if (args.length == 3) {
+            if (args[0].equalsIgnoreCase("vote")) {
+                if (!player.isInParty()) {
+                    Party.sendMessage(player, Component.text(ChatColor.RED + "You must be in a party!"));
+                    return true;
+                }
+                try {
+                    int indexPoll = Integer.parseInt(args[1]);
+                    int indexAnswer = Integer.parseInt(args[2]);
+
+                    if (indexPoll >= player.getParty().getRunningPolls().keySet().size()) {
+                        throw new NumberFormatException();
+                    }
+
+                    Poll poll = player.getParty().getRunningPolls().keySet().toArray(new Poll[0])[indexPoll];
+
+                    if (indexAnswer >= poll.getData().getAnswers().size()) {
+                        throw new NumberFormatException();
+                    }
+
+                    if (poll.hasEnded()) {
+                        Party.sendMessage(player, Component.text(ChatColor.RED + "This poll has already ended!"));
+                        return true;
+                    }
+
+                    if (player.getParty().hasVoted(poll, player)) {
+                        Party.sendMessage(player, Component.text(ChatColor.RED + "You already voted to this poll!"));
+                        return true;
+                    }
+
+                    PollAnswer answer = poll.getData().getAnswers().get(indexAnswer);
+
+                    ArrayList<GamePlayer> voters = poll.getVotes().getOrDefault(answer, new ArrayList<>());
+
+                    voters.add(player);
+
+                    poll.getVotes().put(answer, voters);
+
+                    Party.sendMessage(player, Component.text(ChatColor.GRAY + "You answered: "+ChatColor.DARK_AQUA+answer.answer()));
+                    return true;
+
+                } catch (NumberFormatException e) {
+                    Party.sendMessage(player, Component.text(ChatColor.RED + "Invalid index!"));
+                    return true;
+                }
+            }
+        } else {
             sendHelpMessage(player);
         }
 
@@ -333,6 +410,8 @@ public class PartyCommand implements CommandExecutor {
                 Component.text("§3/party toggle <setting>§7 - Toggles a setting on or off."),
                 Component.text("§3/party cyclerole <player>§7 - Changes a player's role (Leader only)."),
                 Component.text("§3/party transfer <player>§7 - Transfers the party to an other player!"),
-                Component.text("§3/party yoink <player>§7 - Forcefully makes a player join."));
+                Component.text("§3/party yoink <player>§7 - Forcefully makes a player join."),
+                Component.text("§3/party vote <poll-index> <answer-index>§7 - Vote for a poll, (however, most of the time this is done by just clicking a chat message)")
+        );
     }
 }

@@ -1,9 +1,9 @@
 package dev.nova.gameapi.game.base.instance.commands;
 
 import dev.nova.gameapi.GAPIPlugin;
-import dev.nova.gameapi.game.base.instance.commands.gui.api.ObjectBoundGUI;
-import dev.nova.gameapi.game.base.instance.commands.gui.api.item.ClickAction;
-import dev.nova.gameapi.game.base.instance.commands.gui.api.item.Item;
+import dev.nova.gameapi.utils.api.gui.ObjectBoundGUI;
+import dev.nova.gameapi.utils.api.gui.item.ClickAction;
+import dev.nova.gameapi.utils.api.gui.item.Item;
 import dev.nova.gameapi.game.base.instance.team.Team;
 import dev.nova.gameapi.game.base.instance.team.TeamGameInstance;
 import dev.nova.gameapi.game.player.GamePlayer;

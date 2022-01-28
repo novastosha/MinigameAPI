@@ -28,9 +28,7 @@ public class ChatListener implements Listener {
             }
             event.setCancelled(true);
         }else if(player.isInGame()){
-            String message = player.getGame().getChatFormat(player).apply(new Message(player,event.getMessage()));
-            player.getGame().getUtils().sendMessage(message);
-            event.setCancelled(true);
+            player.getGame().handleChatEvent(event);
         }
     }
 

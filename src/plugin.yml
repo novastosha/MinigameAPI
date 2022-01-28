@@ -29,5 +29,7 @@ commands:
     description: A wand.
   saveSchematic:
     description: Saves a schematic to a file!
+  rejoin:
+    description: Rejoins a previous game. (if the instance was capable of doing that)
 depend:
   - ProtocolLib

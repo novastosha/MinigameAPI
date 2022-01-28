@@ -17,10 +17,7 @@ import dev.nova.gameapi.game.map.MapInjection;
 import dev.nova.gameapi.game.map.options.OptionType;
 import dev.nova.gameapi.game.player.GamePlayer;
 import net.kyori.adventure.text.Component;
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.GameMode;
-import org.bukkit.Location;
+import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Cancellable;
@@ -29,10 +26,7 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
-import org.bukkit.event.player.PlayerChangedWorldEvent;
-import org.bukkit.event.player.PlayerDropItemEvent;
-import org.bukkit.event.player.PlayerPickupArrowEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.*;
 import org.bukkit.event.weather.WeatherChangeEvent;
 
 import java.util.*;
@@ -63,6 +57,8 @@ public abstract class GameInstance {
     protected final GameController[] controllers;
     protected final ArrayList<GameValue<?>> values;
     public final int eventsTaskID;
+    private final ArrayList<Location> filter;
+    private final boolean rejoinCapable;
 
     protected GameState gameState;
     protected boolean canStart = true;
@@ -71,13 +67,13 @@ public abstract class GameInstance {
     private GameEvent currentEvent;
     private int currentEventIndex = -1;
 
-
-
     protected Function<Message, String> playersChatFormat = (message -> ChatColor.GRAY + message.player().getPlayer().getName() + ChatColor.RESET + ": " + message.message());
     protected Function<Message, String> spectatorsChatFormat = (message -> ChatColor.GRAY + "[SPECTATOR] " + message.player().getPlayer().getName() + ChatColor.RESET + ": " + message.message());
 
     protected Function<GamePlayer, String> tablistHeaderFormat = (player -> ChatColor.GRAY+" You are playing: "+player.getGame().gameBase.getCode(getClass()));
     protected Function<GamePlayer, String> tablistLowerFormat = (player -> ChatColor.GRAY+" Players Left: "+player.getGame().getPlayers().size());
+    protected Function<GamePlayer, String> disconnectionFormat = (player -> ChatColor.GRAY+player.getPlayer().getName()+" left the game.");
+    protected Function<GamePlayer, String> rejoiningFormat = (player -> ChatColor.GRAY+player.getPlayer().getName()+" rejoined.");
 
     public Function<Message, String> getPlayersChatFormat() {
         return playersChatFormat;
@@ -93,6 +89,10 @@ public abstract class GameInstance {
 
     public Function<GamePlayer, String> getTablistLowerFormat() {
         return tablistLowerFormat;
+    }
+
+    public boolean rejoin(GamePlayer player) {
+        return false;
     }
 
     public void setTablistHeaderFormat(Function<GamePlayer, String> tablistHeaderFormat) {
@@ -120,14 +120,16 @@ public abstract class GameInstance {
      *
      * @param map The map the players are going to play in.
      */
-    public GameInstance(String displayName, String gameBase, GameMap map, String[] gameDescription, String gameBrief, boolean canBeSpectated, GameController[] gameControllers) {
+    public GameInstance(String displayName, String gameBase, GameMap map, String[] gameDescription, String gameBrief, boolean canBeSpectated, GameController[] gameControllers,boolean rejoinCapable) {
         this.gameBase = GameManager.getGame(gameBase);
         this.canBeSpectated = canBeSpectated;
+        this.rejoinCapable = rejoinCapable;
         this.values = new ArrayList<GameValue<?>>();
         this.spectators = new ArrayList<GamePlayer>();
         this.displayName = displayName;
         this.description = gameDescription;
         this.brief = gameBrief;
+        this.filter = new ArrayList<Location>();
         this.blocks = new HashMap<>();
         this.playerScoreboards = new ArrayList<>();
         this.controllers = gameControllers;
@@ -150,26 +152,30 @@ public abstract class GameInstance {
 
         this.spectatorLocation = canBeSpectated ? this.map.loadOption("spectator-location", OptionType.LOCATION, true).getAsLocation() : null;
 
-        this.eventsTaskID = Bukkit.getServer().getScheduler().scheduleSyncRepeatingTask(GAPIPlugin.getPlugin(GAPIPlugin.class), new Runnable() {
-            @Override
-            public void run() {
-                ArrayList<GameEvent> toRemove = new ArrayList<>();
+        if(cloneEvents != null) {
+            this.eventsTaskID = Bukkit.getServer().getScheduler().scheduleSyncRepeatingTask(GAPIPlugin.getPlugin(GAPIPlugin.class), new Runnable() {
+                @Override
+                public void run() {
+                    ArrayList<GameEvent> toRemove = new ArrayList<>();
 
-                for (GameEvent event : cloneEvents) {
-                    event.durationLeft--;
+                    for (GameEvent event : cloneEvents) {
+                        event.durationLeft--;
 
-                    if (event.durationLeft == 0) {
-                        currentEvent = event;
-                        toRemove.add(event);
-                        currentEvent.onEvent();
-                        currentEventIndex++;
+                        if (event.durationLeft == 0) {
+                            currentEvent = event;
+                            toRemove.add(event);
+                            currentEvent.onEvent();
+                            currentEventIndex++;
+                        }
                     }
-                }
 
-                cloneEvents.removeAll(toRemove);
-                toRemove.clear();
-            }
-        }, 0L, 20L);
+                    cloneEvents.removeAll(toRemove);
+                    toRemove.clear();
+                }
+            }, 0L, 20L);
+        }else{
+            this.eventsTaskID = -1;
+        }
     }
 
     public int getCurrentEventIndex() {
@@ -266,6 +272,7 @@ public abstract class GameInstance {
         if (canStart) {
             players.add(player);
             player.setGame(this);
+            player.setPreviousGame(this);
             for (GamePlayer send : players) {
                 send.getPlayer().sendMessage(player.getPlayer().getName() + " §a joined the game! §7(" + players.size() + "/" + gameMap.getPlayerLimit() + ")");
             }
@@ -295,6 +302,10 @@ public abstract class GameInstance {
         }
     }
 
+    public boolean isRejoinCapable() {
+        return rejoinCapable;
+    }
+
     public void onEnd() {
         if (!ended) {
             this.gameState = GameState.ENDED;
@@ -308,6 +319,7 @@ public abstract class GameInstance {
             for (GamePlayer player : players) {
                 gameBase.moveToLobby(player);
                 player.setGame(null);
+                player.setPreviousGame(null);
                 player.getPlayer().setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
                 TablistManager.resetTablist(player);
             }
@@ -315,6 +327,7 @@ public abstract class GameInstance {
             for (GamePlayer player : spectators) {
                 gameBase.moveToLobby(player);
                 player.setGame(null);
+                player.setPreviousGame(null);
                 player.getPlayer().setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
                 TablistManager.resetTablist(player);
             }
@@ -488,6 +501,15 @@ public abstract class GameInstance {
         return spectators.contains(player) ? getSpectatorsChatFormat() : getPlayersChatFormat();
     }
 
+    public void handleChatEvent(PlayerChatEvent event) {
+
+        GamePlayer player = GamePlayer.getPlayer(event.getPlayer());
+
+        String message = player.getGame().getChatFormat(player).apply(new Message(player,event.getMessage()));
+        player.getGame().getUtils().sendMessage(message);
+        event.setCancelled(true);
+    }
+
     public static class GameUtils {
 
         private final GameInstance instance;
@@ -541,7 +563,10 @@ public abstract class GameInstance {
                 }
             }
 
-            if (!contains && !containsController(GameController.BREAK_BLOCKS_MAP)) {
+            Location location = ((BlockBreakEvent) event).getBlock().getLocation();
+            location.setWorld(getMap().getBukkitWorld());
+
+            if (!contains && !containsController(GameController.BREAK_BLOCKS_MAP) && !filter.contains(location)) {
                 ((Cancellable) event).setCancelled(true);
                 player.getPlayer().sendMessage("§cYou cannot break map blocks!");
             }
@@ -594,7 +619,7 @@ public abstract class GameInstance {
             if (spectators.contains(player)) {
                 getUtils().sendMessage("§7" + player.getPlayer().getName() + " is no longer spectating!");
             } else if (players.contains(player)) {
-                getUtils().sendMessage("§7" + player.getPlayer().getName() + " left the game!");
+                getUtils().sendMessage(disconnectionFormat.apply(player));
             }
             if (players.contains(player) || spectators.contains(player)) {
                 players.remove(player);
@@ -605,6 +630,10 @@ public abstract class GameInstance {
                 TablistManager.resetTablist(player);
             }
         }
+    }
+
+    public ArrayList<Location> getFilter() {
+        return filter;
     }
 
     public void switchToSpectator(GamePlayer player) {

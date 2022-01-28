@@ -25,6 +25,11 @@ public class GamePlayer {
     public boolean partyChat = false;
     private GameInstance game;
     private Party party;
+    private GameInstance previousGame;
+
+    public GameInstance getPreviousGame() {
+        return previousGame;
+    }
 
     public GamePlayer(Player player) throws UnableToLoadGamePlayerException {
         this.player = player;
@@ -107,6 +112,10 @@ public class GamePlayer {
             if(info.inviter().equals(accepting)) return info;
         }
         return null;
+    }
+
+    public void setPreviousGame(GameInstance instance) {
+        this.previousGame = instance;
     }
 
     public static class UnableToLoadGamePlayerException extends Exception {

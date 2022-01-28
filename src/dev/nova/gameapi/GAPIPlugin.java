@@ -10,10 +10,7 @@ import com.comphenix.protocol.events.PacketAdapter;
 import com.comphenix.protocol.events.PacketEvent;
 import dev.nova.gameapi.game.base.GameBase;
 import dev.nova.gameapi.game.base.instance.GameInstance;
-import dev.nova.gameapi.game.base.instance.commands.LeaveCommand;
-import dev.nova.gameapi.game.base.instance.commands.ReviveCommand;
-import dev.nova.gameapi.game.base.instance.commands.SpectateCommand;
-import dev.nova.gameapi.game.base.instance.commands.SpectatorCommand;
+import dev.nova.gameapi.game.base.instance.commands.*;
 import dev.nova.gameapi.game.base.lobby.Lobby;
 import dev.nova.gameapi.game.base.mysql.DatabaseConnection;
 import dev.nova.gameapi.game.base.tasks.GameEventListener;
@@ -83,6 +80,8 @@ public class GAPIPlugin extends JavaPlugin {
         getCommand("saveSchematic").setExecutor(new SchematicsSaveCommand());
 
         getCommand("forcestart").setExecutor(new ForceStartCommand());
+
+        getCommand("rejoin").setExecutor(new RejoinCommand());
 
         for (Files files : Files.values()) {
             if (files.isToCreate()) {

@@ -308,7 +308,7 @@ public class Party {
 
         String s = builder.toString();
 
-        return s.substring(s.lastIndexOf(","));
+        return s;
     }
 
     public void createPoll() {
@@ -525,7 +525,7 @@ public class Party {
 
         int i = 1;
         for (PollAnswer answer : poll.getData().getAnswers()) {
-            components.add(Component.text(ChatColor.GRAY + String.valueOf(i) + ": " + ChatColor.DARK_AQUA + answer.answer() + " [CLICK TO VOTE]").clickEvent(ClickEvent.clickEvent(ClickEvent.Action.RUN_COMMAND, "/party vote " + mainList.indexOf(poll) + " " + (i - 1))));
+            components.add(Component.text(ChatColor.GRAY + String.valueOf(i) + ": " + ChatColor.DARK_AQUA + answer.answer() +ChatColor.DARK_GRAY+" (Click)").clickEvent(ClickEvent.clickEvent(ClickEvent.Action.RUN_COMMAND, "/party vote " + mainList.indexOf(poll) + " " + (i - 1))));
             i++;
         }
 

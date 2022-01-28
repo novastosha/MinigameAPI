@@ -241,7 +241,7 @@ public class GameMap {
             newWorld.setAutoSave(false);
             newWorld.setGameRuleValue("doDaylightCycle", "false");
             newWorld.setGameRuleValue("doWeatherCycle", "false");
-            newWorld.setDifficulty(Difficulty.EASY);
+            newWorld.setDifficulty(Difficulty.PEACEFUL);
             newWorld.setTime(1000);
             newWorld.setGameRuleValue("announceAdvancements","false");
             newWorld.setThundering(false);
@@ -267,7 +267,7 @@ public class GameMap {
 
         private static void copyFileStructure(File source, File target) throws UnableToCloneException{
             try {
-                ArrayList<String> ignore = new ArrayList<>(Arrays.asList("uid.dat", "session.lock"));
+                ArrayList<String> ignore = new ArrayList<>(Arrays.asList("uid.dat", "session.lock","entities"));
                 if (!ignore.contains(source.getName())) {
                     if (source.isDirectory()) {
                         if (!target.exists())

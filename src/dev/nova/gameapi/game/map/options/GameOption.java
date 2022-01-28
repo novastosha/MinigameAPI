@@ -62,6 +62,10 @@ public class GameOption {
         );
     }
 
+    public ConfigurationSection getAsConfigurationSection() {
+        return (ConfigurationSection) value;
+    }
+
     public int getAsInt() {
         return (int) getValue();
     }
@@ -92,8 +96,6 @@ public class GameOption {
         int iter = 0;
         for (String key : valueConfig.getKeys(false)) {
             try {
-
-
                 T obj = null;
                 try {
                     obj = (T) valueConfig.get(key);

@@ -14,12 +14,12 @@ import java.util.ArrayList;
 
 public abstract class ObjectBoundGUI implements Listener {
 
-    private final ArrayList<Item<?>> items;
+    protected final ArrayList<Item<?>> items;
 
     private final String title;
     private final int size;
 
-    private final Inventory inventory;
+    protected final Inventory inventory;
 
     /**
      *

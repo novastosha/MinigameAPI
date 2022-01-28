@@ -102,7 +102,13 @@ public enum Files {
     }
 
     public static File getGameDatabasesFile(String gameName,boolean create){
-        File file = new File(new File(GAME_FOLDER.getFile().getPath().replaceAll("NAME",gameName)),"database.yml");
+        File f = new File(GAME_FOLDER.getFile().getPath().replaceAll("NAME",gameName));
+        try {
+            f.createNewFile();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        File file = new File(f,"database.yml");
 
         try {
             file.createNewFile();

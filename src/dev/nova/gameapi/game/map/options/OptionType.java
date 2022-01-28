@@ -6,6 +6,6 @@ public enum OptionType {
     STRING,
     LOCATION,
     INTEGER,
-    ARRAY
-
+    ARRAY,
+    CONFIGURATION_SECTION
 }

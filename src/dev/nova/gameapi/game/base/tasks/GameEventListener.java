@@ -8,12 +8,15 @@ import dev.nova.gameapi.game.manager.GameManager;
 import dev.nova.gameapi.game.player.GamePlayer;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.event.entity.EntityAirChangeEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.event.world.ChunkUnloadEvent;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.lang.reflect.InvocationTargetException;
@@ -55,7 +58,40 @@ public class GameEventListener extends GlobalEventListener {
                             continue;
                         }
 
+                        if(event instanceof InventoryClickEvent clickEvent) {
+                            ArrayList<HumanEntity> players = new ArrayList<>();
+
+                            for(GamePlayer p : instance.getPlayers()){
+                                players.add(p.getPlayer());
+                            }
+
+                            if(players.containsAll(clickEvent.getViewers())){
+                                instance.onEvent(clickEvent);
+                            }
+                            continue;
+                        }
+
                         try {
+
+                            Inventory inventory = (Inventory) event.getClass().getMethod("getInventory").invoke(event);
+
+                            if(inventory == null){
+                                inventory = (Inventory) event.getClass().getMethod("getClickedInventory").invoke(event);
+                            }
+
+                            if(inventory != null) {
+                                ArrayList<HumanEntity> players = new ArrayList<>();
+
+                                for(GamePlayer p : instance.getPlayers()){
+                                    players.add(p.getPlayer());
+                                }
+
+                                if(players.containsAll(inventory.getViewers())){
+                                    instance.onEvent(event);
+                                    continue;
+                                }
+                            }
+
                             World world = (World) event.getClass().getMethod("getWorld").invoke(event);
 
                             if (world != null) {

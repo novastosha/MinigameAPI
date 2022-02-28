@@ -60,7 +60,7 @@ public abstract class GameBase {
         this.gameTheme = gameTheme;
         this.instances = new HashMap<>();
         this.lobbyFile = new File(Files.getGameFolder(codeName), "lobby.yml");
-        this.databases = loadDatabases();
+        this.databases = databases.length != 0 ? loadDatabases() : new DatabaseConnection[0];
         this.lobbyConfiguration = new YamlConfiguration();
 
         if (lobbySupport) {

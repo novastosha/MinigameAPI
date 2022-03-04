@@ -1,6 +1,6 @@
 package dev.nova.gameapi.game.base.scoreboard.animated;
 
-import dev.nova.gameapi.GAPIPlugin;
+import dev.nova.gameapi.GameAPI;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
@@ -36,7 +36,7 @@ public class AnimatedScoreboard implements Scoreboard {
 
         if (animationType != null) {
 
-            Bukkit.getServer().getScheduler().scheduleSyncRepeatingTask(GAPIPlugin.getPlugin(GAPIPlugin.class), new Runnable() {
+            Bukkit.getServer().getScheduler().scheduleSyncRepeatingTask(GameAPI.getPlugin(GameAPI.class), new Runnable() {
                 @Override
                 public void run() {
                     for (Player player : getPlayers()) {

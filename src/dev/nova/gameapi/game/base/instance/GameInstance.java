@@ -1,6 +1,7 @@
 package dev.nova.gameapi.game.base.instance;
 
-import dev.nova.gameapi.GAPIPlugin;
+import com.google.common.collect.ImmutableList;
+import dev.nova.gameapi.GameAPI;
 import dev.nova.gameapi.game.base.GameBase;
 import dev.nova.gameapi.game.base.instance.formats.chat.Message;
 import dev.nova.gameapi.game.base.instance.events.GameEvent;
@@ -16,27 +17,45 @@ import dev.nova.gameapi.game.map.GameMap;
 import dev.nova.gameapi.game.map.MapInjection;
 import dev.nova.gameapi.game.map.options.OptionType;
 import dev.nova.gameapi.game.player.GamePlayer;
-import net.kyori.adventure.text.Component;
+import dev.nova.gameapi.utils.Titles;
 import org.bukkit.*;
 import org.bukkit.block.Block;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.Event;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
-import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.*;
 import org.bukkit.event.weather.WeatherChangeEvent;
 
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.function.Function;
+
 import dev.nova.gameapi.game.base.scoreboard.Scoreboard;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scoreboard.Team;
 
 public abstract class GameInstance {
 
+
+
+    public class LayoutManager {
+
+
+    }
+
+    public LayoutManager getLayoutManager() {
+        return layoutManager;
+    }
+
     protected final int gameID;
 
+    protected LayoutManager layoutManager;
     protected final GameMap gameMap;
 
     protected final GameBase gameBase;
@@ -70,10 +89,10 @@ public abstract class GameInstance {
     protected Function<Message, String> playersChatFormat = (message -> ChatColor.GRAY + message.player().getPlayer().getName() + ChatColor.RESET + ": " + message.message());
     protected Function<Message, String> spectatorsChatFormat = (message -> ChatColor.GRAY + "[SPECTATOR] " + message.player().getPlayer().getName() + ChatColor.RESET + ": " + message.message());
 
-    protected Function<GamePlayer, String> tablistHeaderFormat = (player -> ChatColor.GRAY+" You are playing: "+player.getGame().gameBase.getCode(getClass()));
-    protected Function<GamePlayer, String> tablistLowerFormat = (player -> ChatColor.GRAY+" Players Left: "+player.getGame().getPlayers().size());
-    protected Function<GamePlayer, String> disconnectionFormat = (player -> ChatColor.GRAY+player.getPlayer().getName()+" left the game.");
-    protected Function<GamePlayer, String> rejoiningFormat = (player -> ChatColor.GRAY+player.getPlayer().getName()+" rejoined.");
+    protected Function<GamePlayer, String> tablistHeaderFormat = (player -> ChatColor.GRAY + " You are playing: " + player.getGame().displayName);
+    protected Function<GamePlayer, String> tablistLowerFormat = (player -> ChatColor.GRAY + " Players Left: " + player.getGame().getPlayers().size());
+    protected Function<GamePlayer, String> disconnectionFormat = (player -> ChatColor.GRAY + player.getPlayer().getName() + " left the game.");
+    protected Function<GamePlayer, String> rejoiningFormat = (player -> ChatColor.GRAY + player.getPlayer().getName() + " rejoined.");
 
     public Function<Message, String> getPlayersChatFormat() {
         return playersChatFormat;
@@ -120,13 +139,14 @@ public abstract class GameInstance {
      *
      * @param map The map the players are going to play in.
      */
-    public GameInstance(String displayName, String gameBase, GameMap map, String[] gameDescription, String gameBrief, boolean canBeSpectated, GameController[] gameControllers,boolean rejoinCapable) {
+    protected GameInstance(String displayName, String gameBase, GameMap map, String[] gameDescription, String gameBrief, boolean canBeSpectated, GameController[] gameControllers, boolean rejoinCapable) {
         this.gameBase = GameManager.getGame(gameBase);
         this.canBeSpectated = canBeSpectated;
         this.rejoinCapable = rejoinCapable;
         this.values = new ArrayList<GameValue<?>>();
         this.spectators = new ArrayList<GamePlayer>();
         this.displayName = displayName;
+        this.layoutManager = new LayoutManager();
         this.description = gameDescription;
         this.brief = gameBrief;
         this.filter = new ArrayList<Location>();
@@ -148,12 +168,12 @@ public abstract class GameInstance {
 
         this.gameState = GameState.CLOSED;
 
-        this.utils = new GameUtils(this);
+        this.utils = new GameUtils();
 
         this.spectatorLocation = canBeSpectated ? this.map.loadOption("spectator-location", OptionType.LOCATION, true).getAsLocation() : null;
 
-        if(cloneEvents != null) {
-            this.eventsTaskID = Bukkit.getServer().getScheduler().scheduleSyncRepeatingTask(GAPIPlugin.getPlugin(GAPIPlugin.class), new Runnable() {
+        if (cloneEvents != null) {
+            this.eventsTaskID = Bukkit.getServer().getScheduler().scheduleSyncRepeatingTask(GameAPI.getPlugin(GameAPI.class), new Runnable() {
                 @Override
                 public void run() {
                     ArrayList<GameEvent> toRemove = new ArrayList<>();
@@ -173,7 +193,7 @@ public abstract class GameInstance {
                     toRemove.clear();
                 }
             }, 0L, 20L);
-        }else{
+        } else {
             this.eventsTaskID = -1;
         }
     }
@@ -298,7 +318,7 @@ public abstract class GameInstance {
             }
         } else {
             utils.sendMessage("§cUnable to start game!");
-            onEnd();
+            onEnd(true);
         }
     }
 
@@ -306,7 +326,19 @@ public abstract class GameInstance {
         return rejoinCapable;
     }
 
-    public void onEnd() {
+    public enum EndState {
+        DO_NOTHING,
+        IMMEDIATE,
+        FAILED,
+        SUCCESS
+    }
+
+    public EndState onEnd(boolean immediate) {
+
+        if(!GameAPI.getPlugin(GameAPI.class).getConfig().getBoolean("after-end.enabled",false)){
+            immediate = true;
+        }
+
         if (!ended) {
             this.gameState = GameState.ENDED;
             this.ended = true;
@@ -316,44 +348,226 @@ public abstract class GameInstance {
                 }
             }
 
+            boolean failed = false;
+
             for (GamePlayer player : players) {
-                gameBase.moveToLobby(player);
+                TablistManager.resetTablist(player);
                 player.setGame(null);
                 player.setPreviousGame(null);
                 player.getPlayer().setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
-                TablistManager.resetTablist(player);
+                try {
+                    if (!failed) {
+                        failed = !resetPlayer(player);
+                    }
+                }catch (Exception e) {
+                    failed = true;
+                }
+                normalReset(player,GameMode.ADVENTURE);
+
+                if(immediate || failed) {
+                    gameBase.moveToLobby(player);
+                }
             }
 
             for (GamePlayer player : spectators) {
-                gameBase.moveToLobby(player);
+                TablistManager.resetTablist(player);
                 player.setGame(null);
                 player.setPreviousGame(null);
                 player.getPlayer().setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
-                TablistManager.resetTablist(player);
+                try {
+                    if (!failed) {
+                        failed = !resetSpectator(player);
+                    }
+                }catch (Exception e) {
+                    failed = true;
+                }
+                normalReset(player,GameMode.SPECTATOR);
+
+                if(immediate || failed) {
+                    gameBase.moveToLobby(player);
+                }
             }
 
-            if (map != null) {
-                if (map.getBukkitWorld().getPlayers().size() != 0) {
-                    for (Player player : map.getBukkitWorld().getPlayers()) {
-                        player.kick(Component.text("§cGame ended and you were not moved to a lobby!"));
-                    }
-                }
-                Bukkit.unloadWorld(map.getBukkitWorld(), false);
-                map.deleteWorld(map.getBukkitWorld().getWorldFolder());
-
-
+            if(failed || immediate) {
+                deleteMap();
             }
 
             playerScoreboards.clear();
-            players.clear();
-            spectators.clear();
             this.blocks.clear();
             this.events.clear();
             this.cloneEvents.clear();
             this.values.clear();
             Bukkit.getServer().getScheduler().cancelTask(eventsTaskID);
 
-            //this.gameBase.removeInstance(this);
+            if(failed || immediate){
+                players.clear();
+                spectators.clear();
+                deleteMap();
+                this.gameBase.removeInstance(this);
+            }else{
+                setGameState(GameState.AFTER_END);
+                new BukkitRunnable(){
+                    @Override
+                    public void run() {
+                        setGameState(GameState.ENDED);
+                        players.forEach(gameBase::moveToLobby);
+                        spectators.forEach(gameBase::moveToLobby);
+                        deleteMap();
+                        players.clear();
+                        spectators.clear();
+                        gameBase.removeInstance(GameInstance.this);
+                    }
+                }.runTaskLater(GameAPI.getPlugin(GameAPI.class),(GameAPI.getPlugin(GameAPI.class).getConfig().getInt("after-end.duration",28))*20L);
+            }
+
+            return failed ? EndState.FAILED : immediate ? EndState.IMMEDIATE : EndState.SUCCESS;
+        }else{
+            return EndState.DO_NOTHING;
+        }
+    }
+
+    /**
+     *
+     * FIXME: Needs heavy re-work.
+     *
+     */
+    public static abstract class NameOption {
+
+        protected static String[] splitString16(String string) {
+
+            String firstPart = string.substring(0,15);
+            String thirdPart = string.replaceFirst(firstPart,"");
+
+
+            return new String[] {
+                    firstPart,
+                    thirdPart
+            };
+        }
+
+        protected static String[] splitString48(String string) {
+
+            String firstPart = string.substring(0,15);
+            String secondPart = string.substring(15,30);
+            String thirdPart = string.replaceFirst(firstPart,"").replaceFirst(secondPart,"");
+
+
+            return new String[] {
+                    firstPart,
+                    secondPart,
+                    thirdPart
+            };
+        }
+
+        protected final String data;
+
+        private NameOption(String data) {
+            this.data = data;
+        }
+
+        public abstract void update(GamePlayer player);
+        public abstract void reset(GamePlayer player);
+
+        public static class NAMETAG extends NameOption {
+
+            private String teamName;
+
+            public NAMETAG(String tag) {
+                super(tag);
+            }
+
+            @Override
+            public void update(GamePlayer player) {
+
+                player.getPlayer().setScoreboard(Bukkit.getServer().getScoreboardManager().getNewScoreboard());
+
+                String prefix = "";
+                String name = data;
+                String suffix = "";
+
+                if(data.length() > 16 && data.length() <= 32) {
+                    String[] split = splitString16(data);
+
+                    prefix = split[0];
+                    name = split[1];
+                }else if(data.length() > 32 && data.length() <= 48){
+                    String[] split = splitString48(data);
+
+                    prefix = split[0];
+                    name = split[1];
+                    suffix = split[2];
+                }
+
+                if(teamName != null){
+                    player.getPlayer().getScoreboard().getTeam(teamName).unregister();
+                }
+
+                teamName = UUID.randomUUID().toString().split("-")[0];
+                player.getPlayer().getScoreboard().registerNewTeam(teamName);
+
+                Team team = player.getPlayer().getScoreboard().getTeam(teamName);
+
+                team.setDisplayName(name);
+                if(!suffix.isBlank()){
+                    team.setPrefix(prefix);
+                }
+                if (!suffix.isBlank()) {
+                    team.setSuffix(suffix);
+                }
+
+                team.addPlayer(player.getPlayer());
+            }
+
+            @Override
+            public void reset(GamePlayer player) {
+                if(teamName == null) return;
+
+                Team team = player.getPlayer().getScoreboard().getTeam(teamName);
+                if(team == null) return;
+
+                team.unregister();
+
+            }
+        }
+
+    }
+
+    /**
+     * Kicks players, deletes the world
+     */
+    private void deleteMap() {
+        if (map != null) {
+            if (map.getBukkitWorld().getPlayers().size() != 0) {
+                for (Player player : map.getBukkitWorld().getPlayers()) {
+                    player.kickPlayer("§cGame ended and you were not moved to a lobby!");
+                }
+            }
+            Bukkit.unloadWorld(map.getBukkitWorld(), false);
+        }
+    }
+
+    protected abstract boolean resetSpectator(GamePlayer player);
+
+    /**
+     *
+     * Basically became a utility method.
+     *
+     */
+    public static void normalReset(GamePlayer player,GameMode gameMode) {
+        Player bukkitPlayer = player.getPlayer();
+
+        bukkitPlayer.setFireTicks(0);
+        bukkitPlayer.setFallDistance(0);
+        bukkitPlayer.setGameMode(gameMode);
+        bukkitPlayer.setExp(0);
+        bukkitPlayer.setLevel(0);
+        bukkitPlayer.setTotalExperience(0);
+        bukkitPlayer.setSaturation(200);
+        bukkitPlayer.setHealth(20);
+        bukkitPlayer.getInventory().clear();
+        bukkitPlayer.setFoodLevel(20);
+        for (PotionEffect effect : bukkitPlayer.getActivePotionEffects()) {
+            bukkitPlayer.removePotionEffect(effect.getType());
         }
     }
 
@@ -366,7 +580,7 @@ public abstract class GameInstance {
         return null;
     }
 
-    public void addScoreboard(GamePlayer player,Scoreboard scoreboard){
+    public void addScoreboard(GamePlayer player, Scoreboard scoreboard) {
         playerScoreboards.add(scoreboard);
         scoreboard.addPlayer(player.getPlayer());
     }
@@ -377,7 +591,7 @@ public abstract class GameInstance {
             utils.sendMessage("§cSorry, an unexpected error happened!");
             canStart = false;
             this.gameBase.removeInstance(this);
-            onEnd();
+            onEnd(true);
         }
     }
 
@@ -402,7 +616,9 @@ public abstract class GameInstance {
         player.setGame(null);
 
 
-        gameBase.moveToLobby(player, false);
+        if(!gameBase.moveToLobby(player)){
+            player.getPlayer().kickPlayer(ChatColor.RED+"There was no lobby to move you to!");
+        }
 
         if (players.contains(player)) {
             onLeavePlayer(player);
@@ -489,7 +705,7 @@ public abstract class GameInstance {
         player.getPlayer().sendMessage("§cYou left the game!");
         player.setGame(null);
         if (!hasEnded()) {
-            gameBase.moveToLobby(player, false);
+            gameBase.moveToLobby(player);
         }
     }
 
@@ -501,45 +717,148 @@ public abstract class GameInstance {
         return spectators.contains(player) ? getSpectatorsChatFormat() : getPlayersChatFormat();
     }
 
-    public void handleChatEvent(PlayerChatEvent event) {
+    public void handleChatEvent(AsyncPlayerChatEvent event) {
 
         GamePlayer player = GamePlayer.getPlayer(event.getPlayer());
 
-        String message = player.getGame().getChatFormat(player).apply(new Message(player,event.getMessage()));
+        String message = player.getGame().getChatFormat(player).apply(new Message(player, event.getMessage()));
         player.getGame().getUtils().sendMessage(message);
         event.setCancelled(true);
     }
 
-    public static class GameUtils {
+    public class GameUtils {
 
-        private final GameInstance instance;
-
-        private GameUtils(GameInstance instance) {
-            this.instance = instance;
+        private GameUtils() {
         }
 
         public void sendMessage(String message) {
-            Arrays.stream(instance.players.toArray(new GamePlayer[0])).forEach(gamePlayer -> {
+            Arrays.stream(players.toArray(new GamePlayer[0])).forEach(gamePlayer -> {
                 gamePlayer.getPlayer().sendMessage(message);
             });
-            Arrays.stream(instance.spectators.toArray(new GamePlayer[0])).forEach(gamePlayer -> {
+            Arrays.stream(spectators.toArray(new GamePlayer[0])).forEach(gamePlayer -> {
                 gamePlayer.getPlayer().sendMessage(message);
             });
         }
 
-        public void sendTitle(String title, String subTitle, int i, int i1, int i2) {
-            Arrays.stream(instance.players.toArray(new GamePlayer[0])).forEach(gamePlayer -> {
-                gamePlayer.getPlayer().sendTitle(title, subTitle, i, i1, i2);
+        public void sendTitle(String title, String subTitle, int fadeIn, int stay, int fadeOut) {
+            Arrays.stream(players.toArray(new GamePlayer[0])).forEach(gamePlayer -> {
+                Titles.sendTitle(gamePlayer.getPlayer(),fadeIn,stay,fadeOut,title,subTitle);
             });
-            Arrays.stream(instance.spectators.toArray(new GamePlayer[0])).forEach(gamePlayer -> {
-                gamePlayer.getPlayer().sendTitle(title, subTitle, i, i1, i2);
+            Arrays.stream(spectators.toArray(new GamePlayer[0])).forEach(gamePlayer -> {
+                Titles.sendTitle(gamePlayer.getPlayer(),fadeIn,stay,fadeOut,title,subTitle);
             });
+        }
+
+        public enum CountDownType {
+            PER_SECOND,
+            SINGLE
+        }
+
+        /**
+         * This will reset the player's XP
+         *
+         * @param player  The player.
+         * @param seconds For how long
+         * @param type    The way to display the Countdown
+         * @param finish  Something to run when the countdown finishes
+         */
+        public void countdown(GamePlayer player, int seconds, CountDownType type, Consumer<GamePlayer> finish) {
+            if (!players.contains(player)) {
+                return;
+            }
+
+            player.getPlayer().setLevel(seconds);
+            player.getPlayer().setExp(1);
+
+            final int[] secs = {seconds};
+
+            final float toRemove = 0.5F / (seconds/2F);
+
+            final float[] exp = {1};
+
+            new BukkitRunnable() {
+
+                @Override
+                public void run() {
+                    if(type.equals(CountDownType.PER_SECOND)){
+                        if(exp[0] <= 0){
+                            exp[0] = 1;
+                        }
+                    }
+
+                    secs[0]--;
+                    player.getPlayer().setLevel(secs[0]);
+
+                    if (type.equals(CountDownType.SINGLE)) {
+                        player.getPlayer().setExp(0);
+                    }else{
+                        exp[0] -=toRemove;
+                        if(exp[0] <= 0){
+                            exp[0] = 1;
+                        }
+                        player.getPlayer().setExp(exp[0]);
+                    }
+
+                    if(secs[0] == 0){
+                        cancel();
+                        player.getPlayer().setExp(0);
+
+                        if(finish != null) finish.accept(player);
+                    }
+                }
+            }.runTaskTimer(GameAPI.getPlugin(GameAPI.class),0,20L);
+
+
+        }
+
+        public void countdown(GamePlayer player, int seconds, CountDownType type) {
+            countdown(player, seconds, type, null);
         }
 
     }
 
-    public void onEvent(Event event) {
+    public void afterEnd(Event event){
+        GamePlayer player = null;
+        if (event instanceof PlayerChangedWorldEvent worldChangeEvent) {
 
+            if (map != null) {
+                if (worldChangeEvent.getFrom().equals(map.getBukkitWorld())) {
+                    player = GamePlayer.getPlayer(worldChangeEvent.getPlayer());
+                }
+            }
+
+        } else if (event instanceof PlayerQuitEvent) {
+            player = GamePlayer.getPlayer(((PlayerQuitEvent) event).getPlayer());
+        }
+
+        if (player != null) {
+            if (players.contains(player) || spectators.contains(player)) {
+                players.remove(player);
+                spectators.remove(player);
+                TablistManager.resetTablist(player);
+                player.setGame(null);
+                player.getPlayer().setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
+            }
+        }
+
+        if(event instanceof PlayerMoveEvent moveEvent){
+            if(moveEvent.getTo().getBlockY() <= 1){
+                player = GamePlayer.getPlayer(moveEvent.getPlayer());
+                if(players.contains(player)){
+                    resetPlayer(player);
+                }else{
+                    resetSpectator(player);
+                }
+                normalReset(GamePlayer.getPlayer(moveEvent.getPlayer()),players.contains(player) ? GameMode.ADVENTURE : GameMode.SPECTATOR);
+            }
+        }
+
+        if(event instanceof Cancellable cancellableEvent && !(event instanceof PlayerMoveEvent) && !(event instanceof PlayerGameModeChangeEvent)){
+            cancellableEvent.setCancelled(true);
+        }
+    }
+
+    public void onEvent(Event event) {
         if (event instanceof BlockPlaceEvent) {
             if (!containsController(GameController.PLACE_BLOCKS)) {
                 ((Cancellable) event).setCancelled(true);
@@ -576,7 +895,7 @@ public abstract class GameInstance {
             }
         }
 
-        if (event instanceof EntityPickupItemEvent pickupItemEvent && !containsController(GameController.ITEM_PICKUP)) {
+        if (event instanceof PlayerPickupItemEvent pickupItemEvent && !containsController(GameController.ITEM_PICKUP)) {
             pickupItemEvent.setCancelled(true);
         }
 
@@ -584,8 +903,10 @@ public abstract class GameInstance {
             ((Cancellable) event).setCancelled(true);
         }
 
-        if (event instanceof PlayerPickupArrowEvent && !containsController(GameController.ARROW_PICKUPS)) {
-            ((Cancellable) event).setCancelled(true);
+        if (event instanceof PlayerPickupItemEvent && !containsController(GameController.ARROW_PICKUPS)) {
+            if(((PlayerPickupItemEvent) event).getItem().getType().equals(EntityType.ARROW)) {
+                ((Cancellable) event).setCancelled(true);
+            }
         }
 
         if (event instanceof PlayerDeathEvent deathEvent) {
@@ -637,7 +958,7 @@ public abstract class GameInstance {
     }
 
     public void switchToSpectator(GamePlayer player) {
-        Bukkit.getServer().getScheduler().runTaskLater(GAPIPlugin.getPlugin(GAPIPlugin.class), new Runnable() {
+        Bukkit.getServer().getScheduler().runTaskLater(GameAPI.getPlugin(GameAPI.class), new Runnable() {
             @Override
             public void run() {
                 player.getPlayer().spigot().respawn();
@@ -651,4 +972,12 @@ public abstract class GameInstance {
         player.getPlayer().getInventory().clear();
         player.getPlayer().sendMessage(ChatColor.GRAY + "You are now a spectator!");
     }
+
+    /**
+     *
+     * If false was returned the game will immediately end.
+     *
+     * @return Whether the reset failed or not.
+     */
+    public abstract boolean resetPlayer(GamePlayer player);
 }

@@ -1,8 +1,6 @@
-main: dev.nova.gameapi.GAPIPlugin
+main: dev.nova.gameapi.GameAPI
 version: 1.0
 name: GameAPI
-startup: postworld
-api-version: 1.16
 commands:
   queue:
     description: Queues a player in a game!
@@ -11,6 +9,11 @@ commands:
     description: Makes a player leave a game!
     aliases:
       - l
+  lobby:
+    description: Moves the player to a lobby. Simmilar to the "leave" command but here the player may use it everywhere.
+    usage: "&c/lobby [game]"
+  map:
+    description: Does a lot of actions with maps like create new ones edit existing ones deleting, etc...
   spectate:
     description: Makes a player spectate a other's game!
   party:
@@ -33,3 +36,4 @@ commands:
     description: Rejoins a previous game. (if the instance was capable of doing that)
 depend:
   - ProtocolLib
+  - SlimeWorldManager

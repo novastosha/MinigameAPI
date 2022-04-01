@@ -8,15 +8,20 @@ import com.comphenix.protocol.ProtocolLibrary;
 import com.comphenix.protocol.events.ListenerPriority;
 import com.comphenix.protocol.events.PacketAdapter;
 import com.comphenix.protocol.events.PacketEvent;
+import com.grinderwolf.swm.api.SlimePlugin;
 import dev.nova.gameapi.game.base.GameBase;
 import dev.nova.gameapi.game.base.instance.GameInstance;
 import dev.nova.gameapi.game.base.instance.commands.*;
-import dev.nova.gameapi.game.base.lobby.Lobby;
+import dev.nova.gameapi.game.base.lobby.LobbyBase;
+import dev.nova.gameapi.game.base.lobby.LobbyLocation;
 import dev.nova.gameapi.game.base.mysql.DatabaseConnection;
 import dev.nova.gameapi.game.base.tasks.GameEventListener;
 import dev.nova.gameapi.game.base.tasks.GameTicker;
-import dev.nova.gameapi.game.base.tasks.LobbyScoreboardTicker;
+import dev.nova.gameapi.game.base.tasks.LobbyTicker;
 import dev.nova.gameapi.game.manager.GameManager;
+import dev.nova.gameapi.game.map.edit.MapEditingManager;
+import dev.nova.gameapi.game.map.edit.commands.MapCommand;
+import dev.nova.gameapi.game.map.swm.GameLocation;
 import dev.nova.gameapi.game.player.GamePlayer;
 import dev.nova.gameapi.game.queue.command.ForceStartCommand;
 import dev.nova.gameapi.game.queue.command.QueueCommand;
@@ -30,8 +35,9 @@ import dev.nova.gameapi.utils.api.schematics.commands.SchematicsSaveCommand;
 import dev.nova.gameapi.utils.api.schematics.commands.SchematicsWandCommand;
 import dev.nova.gameapi.utils.api.schematics.commands.listener.SchematicsInteractEventListener;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Location;
-import org.bukkit.Material;
+import org.bukkit.configuration.serialization.ConfigurationSerialization;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -41,9 +47,17 @@ import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.Map;
 
-public class GAPIPlugin extends JavaPlugin {
+public class GameAPI extends JavaPlugin {
 
+    static {
+        ConfigurationSerialization.registerClass(GameLocation.class, "GameLocation");
+        ConfigurationSerialization.registerClass(LobbyLocation.class, "LobbyLocation");
+    }
+
+    private static SlimePlugin SLIME;
+    private static GameAPI INSTANCE;
     private static Connection coinsConnection;
+    public static MapEditingManager MAP_EDITING_MANAGER;
 
     public static Connection getCoinsConnection() {
         return coinsConnection;
@@ -53,8 +67,28 @@ public class GAPIPlugin extends JavaPlugin {
         return coinsConnection != null;
     }
 
+    public static GameAPI getInstance() {
+        return INSTANCE;
+    }
+
+    public static SlimePlugin getSlime() {
+        return SLIME;
+    }
+
     @Override
     public void onEnable() {
+
+        INSTANCE = this;
+        MAP_EDITING_MANAGER = new MapEditingManager();
+
+        if(Bukkit.getServer().getPluginManager().getPlugin("SlimeWorldManager") == null){
+            Bukkit.getServer().getConsoleSender().sendMessage(ChatColor.GRAY+"["+ChatColor.AQUA+"GameAPI"+ChatColor.GRAY+"] SlimeWorldManager is required to use this API.");
+            Bukkit.getServer().getPluginManager().disablePlugin(this);
+            INSTANCE = null;
+            return;
+        }
+
+        SLIME = (SlimePlugin) Bukkit.getServer().getPluginManager().getPlugin("SlimeWorldManager");
 
         new GameEventListener(this, true);
         Bukkit.getServer().getPluginManager().registerEvents(new ChatListener(), this);
@@ -82,6 +116,16 @@ public class GAPIPlugin extends JavaPlugin {
         getCommand("forcestart").setExecutor(new ForceStartCommand());
 
         getCommand("rejoin").setExecutor(new RejoinCommand());
+
+        LobbyBase.Command lobbyCommand = new LobbyBase.Command();
+
+        getCommand("lobby").setExecutor(lobbyCommand);
+        getCommand("lobby").setTabCompleter(lobbyCommand);
+
+        MapCommand mapCommand = new MapCommand();
+
+        getCommand("map").setExecutor(mapCommand);
+        getCommand("map").setTabCompleter(mapCommand);
 
         for (Files files : Files.values()) {
             if (files.isToCreate()) {
@@ -114,7 +158,7 @@ public class GAPIPlugin extends JavaPlugin {
         }
 
         Bukkit.getServer().getScheduler().scheduleSyncRepeatingTask(this, GameTicker.instance(), 0L, 0L);
-        Bukkit.getServer().getScheduler().scheduleSyncRepeatingTask(this, LobbyScoreboardTicker.instance(), 0L, 0L);
+        Bukkit.getServer().getScheduler().scheduleSyncRepeatingTask(this, LobbyTicker.instance(), 0L, 0L);
         ArrayList<Party> parties = new ArrayList<>();
         Bukkit.getServer().getScheduler().scheduleSyncRepeatingTask(this, new Runnable() {
             @Override
@@ -147,7 +191,7 @@ public class GAPIPlugin extends JavaPlugin {
                 }
                 parties.clear();
             }
-        }, 00L, 20L);
+        }, 0L, 20L);
 
         ProtocolLibrary.getProtocolManager().addPacketListener(new PacketAdapter(this, ListenerPriority.HIGHEST, PacketType.Play.Client.UPDATE_SIGN) {
             @Override
@@ -156,17 +200,17 @@ public class GAPIPlugin extends JavaPlugin {
                 GamePlayer player = GamePlayer.getPlayer(bukkitPlayer);
 
                 if (!player.isInParty()) {
-                    bukkitPlayer.sendBlockChange(new Location(bukkitPlayer.getWorld(), 0, 0, 0), bukkitPlayer.getWorld().getBlockData(0, 0, 0));
+                    bukkitPlayer.sendBlockChange(new Location(bukkitPlayer.getWorld(), 0, 0, 0), 0, (byte) 0);
                     return;
                 }
 
                 if (player.getParty().getLeader() != player) {
-                    bukkitPlayer.sendBlockChange(new Location(bukkitPlayer.getWorld(), 0, 0, 0), bukkitPlayer.getWorld().getBlockData(0, 0, 0));
+                    bukkitPlayer.sendBlockChange(new Location(bukkitPlayer.getWorld(), 0, 0, 0), 0, (byte) 0);
                     return;
                 }
 
                 if (!player.getParty().isOnPollCreation()) {
-                    bukkitPlayer.sendBlockChange(new Location(bukkitPlayer.getWorld(), 0, 0, 0), bukkitPlayer.getWorld().getBlockData(0, 0, 0));
+                    bukkitPlayer.sendBlockChange(new Location(bukkitPlayer.getWorld(), 0, 0, 0), 0, (byte) 0);
                     return;
                 }
 
@@ -185,29 +229,30 @@ public class GAPIPlugin extends JavaPlugin {
 
                 if (player.getParty().data == null) {
                     if (built.isBlank() || built.isEmpty()) {
-                        bukkitPlayer.sendBlockChange(new Location(bukkitPlayer.getWorld(), 0, 0, 0), bukkitPlayer.getWorld().getBlockData(0, 0, 0));
+                        bukkitPlayer.sendBlockChange(new Location(bukkitPlayer.getWorld(), 0, 0, 0), 0, (byte) 0);
                         player.getParty().handleError(Party.Error.EMPTY_POLL_QUESTION);
                         return;
                     }
 
-                    Bukkit.getServer().getScheduler().runTask(GAPIPlugin.this, new Runnable() {
+                    Bukkit.getServer().getScheduler().runTask(GameAPI.this, new Runnable() {
                         @Override
                         public void run() {
-                            bukkitPlayer.sendBlockChange(new Location(bukkitPlayer.getWorld(), 0, 0, 0), bukkitPlayer.getWorld().getBlockData(0, 0, 0));
+                            bukkitPlayer.sendBlockChange(new Location(bukkitPlayer.getWorld(), 0, 0, 0), 0, (byte) 0);
                             player.getParty().startCreation(builder.toString());
                         }
                     });
                 } else {
                     if (built.isBlank() || built.isEmpty()) {
-                        bukkitPlayer.sendBlockChange(new Location(bukkitPlayer.getWorld(), 0, 0, 0), bukkitPlayer.getWorld().getBlockData(0, 0, 0));
+
+                        bukkitPlayer.sendBlockChange(new Location(bukkitPlayer.getWorld(), 0, 0, 0), 0, (byte) 0);
                         player.getParty().handleError(Party.Error.EMPTY_POLL_QUESTION);
                         return;
                     }
 
-                    Bukkit.getServer().getScheduler().runTask(GAPIPlugin.this, new Runnable() {
+                    Bukkit.getServer().getScheduler().runTask(GameAPI.this, new Runnable() {
                         @Override
                         public void run() {
-                            bukkitPlayer.sendBlockChange(new Location(bukkitPlayer.getWorld(), 0, 0, 0), bukkitPlayer.getWorld().getBlockData(0, 0, 0));
+                            bukkitPlayer.sendBlockChange(new Location(bukkitPlayer.getWorld(), 0, 0, 0), 0, (byte) 0);
                             player.getParty().data.getAnswers().add(new PollAnswer(player.getParty().data, builder.toString()));
                             player.getParty().openGUI(player.getParty().data);
                             player.getParty().data = null;
@@ -238,11 +283,6 @@ public class GAPIPlugin extends JavaPlugin {
     public void onDisable() {
         Bukkit.getServer().getScheduler().cancelTasks(this);
         for (GameBase base : GameManager.GAMES) {
-            if (base.hasLobbySupport()) {
-                for (Lobby lobby : base.getLobbyInstances()) {
-                    lobby.delete();
-                }
-            }
             for (ArrayList<GameInstance> instances : base.getRunningInstances().values()) {
                 for (GameInstance instance : instances) {
                     Bukkit.getServer().getScheduler().cancelTask(instance.eventsTaskID);

@@ -1,5 +1,6 @@
 package dev.nova.gameapi.game.base.instance.team;
 
+import dev.nova.gameapi.GameAPI;
 import dev.nova.gameapi.game.base.instance.GameInstance;
 import dev.nova.gameapi.game.base.instance.controller.GameController;
 import dev.nova.gameapi.game.base.instance.formats.chat.Message;
@@ -7,9 +8,12 @@ import dev.nova.gameapi.game.map.GameMap;
 import dev.nova.gameapi.game.player.GamePlayer;
 import dev.nova.gameapi.party.Party;
 import org.bukkit.ChatColor;
-import org.bukkit.entity.Player;
-import org.bukkit.event.player.PlayerChatEvent;
-;
+import org.bukkit.event.Event;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.scheduler.BukkitRunnable;
+
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -51,7 +55,7 @@ public abstract class TeamGameInstance extends GameInstance {
     }
 
     @Override
-    public void handleChatEvent(PlayerChatEvent event) {
+    public void handleChatEvent(AsyncPlayerChatEvent event) {
 
         GamePlayer player = GamePlayer.getPlayer(event.getPlayer());
 
@@ -132,14 +136,51 @@ public abstract class TeamGameInstance extends GameInstance {
         getTeam(player).removePlayer(player, true);
     }
 
+    @Override
+    public void onEvent(Event event) {
+        GamePlayer player = null;
+        if (event instanceof PlayerChangedWorldEvent worldChangeEvent) {
+            if (map != null) {
+                if (worldChangeEvent.getFrom().equals(map.getBukkitWorld())) {
+                    player = GamePlayer.getPlayer(worldChangeEvent.getPlayer());
+                }
+            }
+
+        } else if (event instanceof PlayerQuitEvent) {
+            player = GamePlayer.getPlayer(((PlayerQuitEvent) event).getPlayer());
+        }
+
+        if (player != null) {
+            final Team team = getTeam(player);
+
+            if(team != null) {
+                team.removePlayer(player,true);
+            }
+        }
+        super.onEvent(event);
+    }
+
     public ArrayList<Team> getTeams() {
         return teams;
     }
 
-
     @Override
-    public void onEnd() {
-        super.onEnd();
-        teams.clear();
+    public EndState onEnd(boolean immediate) {
+        EndState endState = super.onEnd(immediate);
+
+        if(!endState.equals(EndState.DO_NOTHING)) {
+            if (endState.equals(EndState.FAILED) || endState.equals(EndState.IMMEDIATE)) {
+                teams.clear();
+            }else{
+                new BukkitRunnable() {
+                    @Override
+                    public void run() {
+                        teams.clear();
+                    }
+                }.runTaskLater(GameAPI.getPlugin(GameAPI.class),(GameAPI.getPlugin(GameAPI.class).getConfig().getInt("after-end.duration",28)+1)*20L);
+            }
+        }
+
+        return endState;
     }
 }

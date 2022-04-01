@@ -2,7 +2,6 @@ package dev.nova.gameapi.party.poll;
 
 import dev.nova.gameapi.game.player.GamePlayer;
 import dev.nova.gameapi.party.Party;
-import net.kyori.adventure.text.Component;
 import org.bukkit.ChatColor;
 
 import java.util.ArrayList;
@@ -26,28 +25,28 @@ public class Poll {
         if (!ended) {
 
             for (GamePlayer player : party.getPartyMembers().keySet()) {
-                ArrayList<Component> components = new ArrayList<>();
+                ArrayList<String> components = new ArrayList<>();
 
-                components.add(Component.text(ChatColor.GRAY + "  Poll Ended!"));
-                components.add(Component.text( "  "));
-                components.add(Component.text(ChatColor.GRAY + "  Question: " +ChatColor.DARK_AQUA+ getData().getQuestion()));
+                components.add((ChatColor.GRAY + "  Poll Ended!"));
+                components.add(( "  "));
+                components.add((ChatColor.GRAY + "  Question: " +ChatColor.DARK_AQUA+ getData().getQuestion()));
                 if (player == party.getLeader()) {
-                    components.add(Component.text(ChatColor.GRAY + "  Original Duration: " +ChatColor.DARK_AQUA+ party.millisToTime(getData().getDuration())));
+                    components.add((ChatColor.GRAY + "  Original Duration: " +ChatColor.DARK_AQUA+ party.millisToTime(getData().getDuration())));
                 }
-                components.add(Component.text(ChatColor.GRAY + "  Answers: "));
+                components.add((ChatColor.GRAY + "  Answers: "));
 
                 int allVoters = party.getVoters(this);
 
                 for (Map.Entry<PollAnswer, ArrayList<GamePlayer>> answers : getVotes().entrySet()) {
-                    components.add(Component.text(ChatColor.GRAY + "    - Answer: " + ChatColor.DARK_AQUA + answers.getKey().answer() + " " + ChatColor.DARK_GRAY + "(" + ((answers.getValue().size() / allVoters) * 100) + "%) " + ChatColor.GRAY + ":"));
+                    components.add((ChatColor.GRAY + "    - Answer: " + ChatColor.DARK_AQUA + answers.getKey().answer() + " " + ChatColor.DARK_GRAY + "(" + ((answers.getValue().size() / allVoters) * 100) + "%) " + ChatColor.GRAY + ":"));
                     if (player == party.getLeader()) {
-                        components.add(Component.text(ChatColor.GRAY + "        People who answered this:"));
+                        components.add((ChatColor.GRAY + "        People who answered this:"));
                         for (GamePlayer playerA : answers.getValue()) {
-                            components.add(Component.text(ChatColor.GRAY + "          - " + ChatColor.DARK_AQUA + playerA.getPlayer().getName()));
+                            components.add((ChatColor.GRAY + "          - " + ChatColor.DARK_AQUA + playerA.getPlayer().getName()));
                         }
                     }
                 }
-                Party.sendMessage(player, components.toArray(new Component[0]));
+                Party.sendMessage(player, components.toArray(new String[0]));
 
             }
 

@@ -1,20 +1,39 @@
 package dev.nova.gameapi.game.map.options;
 
 import dev.nova.gameapi.game.map.GameMap;
+import dev.nova.gameapi.game.map.swm.GameLocation;
 import org.bukkit.Location;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.serialization.ConfigurationSerializable;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.util.Vector;
 
 import java.io.Serializable;
 import java.lang.reflect.Array;
 
 public class GameOption {
 
+    /**
+     * Converts a location to be in the instance's map.
+     *
+     * @param location The location to convert.
+     * @return The converted location.
+     */
+    public static Location convert(Location location, GameMap.Map map) {
+
+        if(location == null || map == null) return location;
+        if(location.getWorld() == map.getBukkitWorld()) return location;
+
+        Location clone = location.clone();
+        clone.setWorld(map.getBukkitWorld());
+
+        return clone;
+    }
+
     private final Object value;
     private final String key;
     private final OptionType type;
     private final GameMap.Map map;
-
 
     public GameOption(String optionKey, OptionType optionType, Object value, GameMap.Map map) {
         this.key = optionKey;
@@ -47,19 +66,16 @@ public class GameOption {
         return (String) value;
     }
 
-    public Location getAsLocation() { return getAsLocation(value); };
+    public Location getAsLocation() {
+        return getAsLocation(value);
+    }
 
     private Location getAsLocation(Object value) {
-        Location location = (Location) value;
-
-        return new Location(
-                map.getBukkitWorld(),
-                location.getX(),
-                location.getY(),
-                location.getZ(),
-                location.getYaw(),
-                location.getPitch()
-        );
+        if (value instanceof GameLocation location) {
+            return location.toBukkitLocation(map.getGameInstance());
+        } else {
+            return (Location) value;
+        }
     }
 
     public ConfigurationSection getAsConfigurationSection() {
@@ -78,6 +94,22 @@ public class GameOption {
      */
     public <T> T get() {
         return (T) getValue();
+    }
+
+    public double getAsDouble() {
+        return (double) value;
+    }
+
+    public float getAsFloat() {
+        return ((Double) value).floatValue();
+    }
+
+    public ItemStack getAsItemStack() {
+        return get();
+    }
+
+    public Vector getAsVector() {
+        return get();
     }
 
     @SuppressWarnings("unchecked")
@@ -104,7 +136,7 @@ public class GameOption {
                     continue;
                 }
 
-                if(obj instanceof Location) {
+                if (obj instanceof Location) {
                     obj = (T) getAsLocation(valueConfig.get(key));
                 }
 

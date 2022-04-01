@@ -1,11 +1,13 @@
 package dev.nova.gameapi.game.queue.command;
 
+import dev.nova.gameapi.GameAPI;
 import dev.nova.gameapi.game.base.GameBase;
 import dev.nova.gameapi.game.manager.GameManager;
+import dev.nova.gameapi.game.map.GameMap;
 import dev.nova.gameapi.game.player.GamePlayer;
 import dev.nova.gameapi.game.queue.Queue;
 import dev.nova.gameapi.party.Party;
-import net.kyori.adventure.text.Component;
+import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -40,65 +42,87 @@ public class QueueCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        if(args.length == 2){
-            GameBase game = GameManager.getGame(args[0]);
+        GameBase game = GameManager.getGame(args[0]);
 
-            if(game == null){
-                player.sendMessage("§cNo game exists with this name!");
-                return true;
-            }
-
-            if(!game.instanceExists(args[1])){
-                player.sendMessage("§cNo mode exists with name: "+args[1]);
-                return true;
-            }
-
-            if(gamePlayer.isInParty()){
-                if(gamePlayer != gamePlayer.getParty().getLeader()){
-                    player.sendMessage("§cOnly the leader can queue you into games!");
-                    return true;
-                }
-            }
-
-            Queue queue;
-
-            try{
-                if(!gamePlayer.isInParty()) {
-                    queue = Queue.getQueues(game, 1)[0];
-                }else{
-                    queue = Queue.getQueues(game, gamePlayer.getParty().getPartyMembers().size())[0];
-                }
-            }catch (ArrayIndexOutOfBoundsException e){
-                queue = new Queue(args[1],game,game.randomMap(args[1]));
-            }
-
-            if(queue == null){
-                queue = new Queue(args[1],game,game.randomMap(args[1]));
-            }
-
-            if(gamePlayer.isInParty()){
-                if(queue.getMap().getPlayerLimit() < gamePlayer.getParty().getPartyMembers().size()){
-                    Party.sendMessage(gamePlayer, Component.text("§cThe game that you are trying to queue in is too small!"));
-                    return true;
-                }
-            }
-
-            if(!gamePlayer.isInParty()) {
-                player.sendMessage("§aYou have been queued in a queue with id: §7" + queue.getId());
-
-                queue.addPlayer(GamePlayer.getPlayer(player));
-            }else{
-                gamePlayer.getParty().sendGlobalMessage(Component.text("§7The party leader is queuing you to: §3"+args[1]));
-                for(GamePlayer player1 : gamePlayer.getParty().getPartyMembers().keySet()){
-                    player1.getPlayer().sendMessage("§aYou have been queued in a queue with id: §7" + queue.getId());
-                    queue.addPlayer(player1);
-                }
-            }
+        if(game == null){
+            player.sendMessage("§cNo game exists with this name!");
             return true;
+        }
+
+        if(!game.instanceExists(args[1])){
+            player.sendMessage("§cNo mode exists with name: "+args[1]);
+            return true;
+        }
+
+        if(gamePlayer.isInParty()){
+            if(gamePlayer != gamePlayer.getParty().getLeader()){
+                player.sendMessage("§cOnly the leader can queue you into games!");
+                return true;
+            }
+        }
+
+        if(GameAPI.MAP_EDITING_MANAGER.getCurrentlyEditingMaps().containsKey(gamePlayer)){
+            player.sendMessage(ChatColor.RED+"You cannot queue while editing a map!");
+            return true;
+        }
+
+        GameMap map;
+
+        if(args.length == 3) {
+            map = game.getMap(args[1],args[2]);
+            if(map == null) {
+                player.sendMessage(ChatColor.RED+"No map with this name exists!");
+                return true;
+            }
+        }else if(args.length == 2){
+            map = game.randomMap(args[1]);
         }else{
             player.sendMessage("§cToo many arguments!");
             return true;
         }
+
+        if(map == null){
+            player.sendMessage(ChatColor.RED+"There are no maps for this game; please contact an administrator about this.");
+            return true;
+        }
+
+        Queue queue;
+
+        try{
+            if(!gamePlayer.isInParty()) {
+                queue = Queue.getBestQueue(game,args[1], new GamePlayer[]{gamePlayer});
+            }else{
+                queue = Queue.getBestQueue(game,args[1], gamePlayer.getParty().getPartyMembers().keySet().toArray(new GamePlayer[0]));
+            }
+        }catch (ArrayIndexOutOfBoundsException e){
+            queue = new Queue(args[1],game,map);
+        }
+
+        if(queue == null){
+            queue = new Queue(args[1],game,map);
+        }
+
+        if(gamePlayer.isInParty()){
+            if(queue.getMap().getPlayerLimit() < gamePlayer.getParty().getPartyMembers().size()){
+                Party.sendMessage(gamePlayer, "§cThe game that you are trying to queue in is too small!");
+                return true;
+            }
+        }
+
+        if(!gamePlayer.isInParty()) {
+            player.sendMessage("§aYou have been queued in a queue with id: §7" + queue.getId());
+
+            queue.addPlayer(GamePlayer.getPlayer(player));
+        }else{
+            gamePlayer.getParty().sendGlobalMessage("§7The party leader is queuing you to: §3"+args[1]);
+            for(GamePlayer player1 : gamePlayer.getParty().getPartyMembers().keySet()){
+                player1.getPlayer().sendMessage("§aYou have been queued in a queue with id: §7" + queue.getId());
+                queue.addPlayer(player1);
+            }
+        }
+        return true;
+
+
     }
 
 
@@ -121,6 +145,26 @@ public class QueueCommand implements CommandExecutor, TabCompleter {
             }
 
             list.addAll(base.getInstances().keySet());
+
+            return list;
+        }
+
+        if(args.length == 3){
+            GameBase base = GameManager.getGame(args[0]);
+
+            if(base == null){
+                return list;
+            }
+
+            String mode = args[1];
+
+            if(!base.getInstances().containsKey(mode)){
+                return list;
+            }
+
+            for(GameMap map : base.getGameMaps().get(mode)){
+                list.add(map.getCodeName());
+            }
 
             return list;
         }

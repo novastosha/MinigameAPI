@@ -30,7 +30,6 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 
-import javax.el.CompositeELResolver;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;

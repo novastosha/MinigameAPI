@@ -10,9 +10,6 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.PotionMeta;
-import org.bukkit.potion.PotionData;
-import org.bukkit.potion.PotionType;
 
 import java.io.File;
 import java.io.IOException;
@@ -89,7 +86,8 @@ public class ChestRandomizer {
 
             ItemStack itemStack = new ItemStack(material,amount);
 
-            if(material.equals(Material.POTION)){
+            //TODO: REMAKE POTION STUFF
+            /*if(material.equals(Material.POTION)){
                 PotionMeta potion = (PotionMeta) itemStack.getItemMeta();
 
                 boolean upgraded = false;
@@ -109,13 +107,14 @@ public class ChestRandomizer {
 
                 try {
                     PotionType type = PotionType.valueOf(potionConfig.getString("type").toUpperCase());
+
                     potion.setBasePotionData(new PotionData(type,extended,upgraded));
                 }catch (IllegalArgumentException e){
                     continue;
                 }
 
                 itemStack.setItemMeta(potion);
-            }
+            }*/
 
             itemStack.addUnsafeEnchantments(enchantments);
 

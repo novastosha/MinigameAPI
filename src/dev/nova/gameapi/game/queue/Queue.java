@@ -7,11 +7,13 @@ import dev.nova.gameapi.game.logger.GameLogger;
 import dev.nova.gameapi.game.logger.LogLevel;
 import dev.nova.gameapi.game.map.GameMap;
 import dev.nova.gameapi.game.player.GamePlayer;
+import dev.nova.gameapi.game.queue.priority.QueuePriority;
+import org.bukkit.event.entity.EntityDamageEvent;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
-import java.util.Arrays;
 
-public class Queue {
+public final class Queue {
 
     public static final ArrayList<Queue> OPEN_QUEUES = new ArrayList<>();
     public static final ArrayList<Queue> CLOSED_QUEUES = new ArrayList<>();
@@ -51,31 +53,55 @@ public class Queue {
         this(instance,game,map,new GamePlayer[0]);
     }
 
-    public static Queue[] getQueues(GameBase game) {
+    public static Queue[] getQueues(GameBase game, String instance) {
         ArrayList<Queue> queues = new ArrayList<>();
         for (Queue queue : OPEN_QUEUES) {
-            if (!CLOSED_QUEUES.contains(queue)) {
+            if (!CLOSED_QUEUES.contains(queue) && queue.instanceName.equals(instance)) {
                 if (queue.game.equals(game)) queues.add(queue);
             }
         }
         return queues.toArray(new Queue[0]);
     }
 
-    public static Queue[] getQueues(int freeSlotsNeeded) {
+    public static Queue getBestQueue(GameBase game, String instance, GamePlayer[] players) {
+        if (players == null || players.length == 0) {
+            return getQueues(game, instance)[0];
+        }
+
+        if (!game.getInstances().containsKey(instance)) {
+            return null;
+        }
+
+        Queue[] queues = getQueues(game, instance, players.length);
+
+        Class<? extends GameInstance> instanceClass = game.getInstances().get(instance);
+
+        try {
+
+            Field field = instanceClass.getField("queuePriority");
+
+            return ((QueuePriority) field.get(null)).prioritize(players,queues);
+        }catch (Exception e) {
+            return getQueues(game,instance,players.length)[0];
+        }
+
+    }
+
+    public static Queue[] getQueues(int freeSlotsNeeded,String instance,GameBase base) {
         ArrayList<Queue> queues = new ArrayList<>();
         for (Queue queue : OPEN_QUEUES) {
-            if (!CLOSED_QUEUES.contains(queue)) {
+            if (!CLOSED_QUEUES.contains(queue) && base == queue.game && queue.instanceName.equals(instance)) {
                 if (queue.playersQueued.size() + freeSlotsNeeded <= queue.map.getPlayerLimit()) queues.add(queue);
             }
         }
         return queues.toArray(new Queue[0]);
     }
 
-    public static Queue[] getQueues(GameBase game, int freeSlotsNeeded) {
+    public static Queue[] getQueues(GameBase game, String instance, int freeSlotsNeeded) {
         ArrayList<Queue> queues = new ArrayList<>();
         for (Queue queue : OPEN_QUEUES) {
             if (!CLOSED_QUEUES.contains(queue)) {
-                if (queue.game.equals(game) && queue.playersQueued.size() + freeSlotsNeeded <= queue.map.getPlayerLimit())
+                if (queue.game.equals(game) && queue.playersQueued.size() + freeSlotsNeeded <= queue.map.getPlayerLimit() && queue.instanceName.equals(instance))
                     queues.add(queue);
 
             }
@@ -175,9 +201,6 @@ public class Queue {
                 player.getPlayer().sendMessage("§aGame is starting in: §75 seconds");
             }
         }
-
-
-
     }
 
     public int getId() {

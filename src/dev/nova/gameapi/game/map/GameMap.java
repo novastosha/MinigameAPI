@@ -1,10 +1,13 @@
 package dev.nova.gameapi.game.map;
 
+import com.grinderwolf.swm.api.world.SlimeWorld;
+import dev.nova.gameapi.GameAPI;
 import dev.nova.gameapi.game.base.GameBase;
 import dev.nova.gameapi.game.base.instance.GameInstance;
 import dev.nova.gameapi.game.logger.GameLog;
 import dev.nova.gameapi.game.logger.GameLogger;
 import dev.nova.gameapi.game.logger.LogLevel;
+import dev.nova.gameapi.game.manager.GameManager;
 import dev.nova.gameapi.game.map.options.GameOption;
 import dev.nova.gameapi.game.map.options.OptionType;
 import org.bukkit.Bukkit;
@@ -19,25 +22,22 @@ import java.io.*;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
-import java.util.Arrays;
 
-public class GameMap {
+public final class GameMap implements Map{
 
-    private final World world;
     private final GameBase gameBase;
     private final String codeName;
     private final String displayName;
     private final ArrayList<Map> maps;
     private final int playerLimit;
+    private final String instanceCode;
     private ConfigurationSection rawData;
     private final File file;
 
-    public GameMap(GameBase gameBase,File configFile,ConfigurationSection data){
+    public GameMap(GameBase gameBase,File configFile,ConfigurationSection data,String instanceCode){
         this.file = configFile;
-        this.world = Bukkit.getWorld(data.getString("world"));
-        if(world == null){
-            loadWorld(data.getString("world"));
-        }
+
+        this.instanceCode = instanceCode;
 
         this.displayName = data.getString("display-name");
         this.maps = new ArrayList<>();
@@ -48,13 +48,19 @@ public class GameMap {
         this.gameBase = gameBase;
     }
 
+    public String getInstanceCode() {
+        return instanceCode;
+    }
+
     public static void loadWorld(String name) {
         World world = new WorldCreator(name).createWorld();
 
         world.setAutoSave(false);
     }
 
-
+    public ConfigurationSection getRawData() {
+        return rawData;
+    }
 
     public File getFile() {
         return file;
@@ -64,9 +70,6 @@ public class GameMap {
         return file.getName().replaceFirst(".yml","");
     }
 
-    public World getWorld() {
-        return world;
-    }
 
     public GameBase getGameBase() {
         return gameBase;
@@ -148,6 +151,22 @@ public class GameMap {
         }
     }
 
+    public ConfigurationSection getOptionsSection() {
+        return rawData.getConfigurationSection("options") == null ? rawData.createSection("options") : rawData.getConfigurationSection("options");
+    }
+
+    public void updateOptions(ConfigurationSection temporaryConfig) {
+        YamlConfiguration configuration = new YamlConfiguration();
+        try {
+            rawData.set("options",temporaryConfig);
+            configuration.set("data",rawData);
+            configuration.save(file);
+            updateRawData();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     public static class Map {
 
         private final GameMap base;
@@ -157,10 +176,26 @@ public class GameMap {
         private final ArrayList<GameOption> options;
 
         public Map(GameMap map, GameInstance gameInstance) throws UnableToCloneException {
+
             this.base = map;
             this.customInjections = new ArrayList<>();
             this.gameInstance = gameInstance;
-            this.bukkitWorld = cloneWorld();
+            SlimeWorld slimeWorld = GameManager.SLIME_WORLD_MAPS.get(map);
+            SlimeWorld slimeWorldClone = slimeWorld.clone("game-"+map.getGameBase().getCodeName()+"-"+map.getInstanceCode()+"-"+map.getCodeName().toLowerCase() + "-" + gameInstance.getGameID());
+            GameAPI.getSlime().generateWorld(slimeWorldClone);
+
+            this.bukkitWorld = Bukkit.getWorld("game-"+map.getGameBase().getCodeName()+"-"+map.getInstanceCode()+"-"+map.getCodeName().toLowerCase() +"-"+gameInstance.getGameID());
+
+            bukkitWorld.setAutoSave(false);
+            bukkitWorld.setGameRuleValue("doDaylightCycle", "false");
+            bukkitWorld.setGameRuleValue("doWeatherCycle", "false");
+            bukkitWorld.setDifficulty(Difficulty.PEACEFUL);
+            bukkitWorld.setTime(1000);
+            bukkitWorld.setGameRuleValue("announceAdvancements","false");
+            bukkitWorld.setThundering(false);
+            bukkitWorld.setStorm(false);
+            bukkitWorld.setWeatherDuration(-1);
+            
             this.options = new ArrayList<GameOption>();
 
         }
@@ -220,80 +255,17 @@ public class GameMap {
             return option;
         }
 
-        private World cloneWorld() throws UnableToCloneException{
-            GameLogger.log(new GameLog(base.gameBase, LogLevel.INFO,"Starting clone of map: "+base.codeName+" for instance with id: "+gameInstance.getGameID(),true));
-            File copiedFile = new File(Bukkit.getWorldContainer(), base.gameBase.getCodeName()+"-"+gameInstance.getGameID()+"-"+base.getCodeName());
-            String worldName = base.gameBase.getCodeName()+"-"+gameInstance.getGameID()+"-"+base.getCodeName();
-            World oldWorld = Bukkit.getServer().getWorld(worldName);
-
-            if(oldWorld != null){
-                Bukkit.getServer().unloadWorld(oldWorld,false);
-                deleteWorld(oldWorld.getWorldFolder());
-            }
-
-            copiedFile.mkdir();
-            copyFileStructure(base.world.getWorldFolder(), copiedFile);
-            GameLogger.log(new GameLog(base.gameBase, LogLevel.INFO,"Clone completed successfully.",true));
-
-            WorldCreator creator = new WorldCreator(base.gameBase.getCodeName()+"-"+gameInstance.getGameID()+"-"+base.getCodeName());
-            World newWorld = creator.createWorld();
-
-            newWorld.setAutoSave(false);
-            newWorld.setGameRuleValue("doDaylightCycle", "false");
-            newWorld.setGameRuleValue("doWeatherCycle", "false");
-            newWorld.setDifficulty(Difficulty.PEACEFUL);
-            newWorld.setTime(1000);
-            newWorld.setGameRuleValue("announceAdvancements","false");
-            newWorld.setThundering(false);
-            newWorld.setStorm(false);
-            newWorld.setWeatherDuration(-1);
-
-            return newWorld;
-        }
-
-        public boolean deleteWorld(File path) {
-            if(path.exists()) {
-                File files[] = path.listFiles();
-                for(int i=0; i<files.length; i++) {
-                    if(files[i].isDirectory()) {
-                        deleteWorld(files[i]);
-                    } else {
-                        files[i].delete();
-                    }
-                }
-            }
-            return(path.delete());
-        }
-
-        private static void copyFileStructure(File source, File target) throws UnableToCloneException{
-            try {
-                ArrayList<String> ignore = new ArrayList<>(Arrays.asList("uid.dat", "session.lock","entities"));
-                if (!ignore.contains(source.getName())) {
-                    if (source.isDirectory()) {
-                        if (!target.exists())
-                            if (!target.mkdirs())
-                                throw new IOException("Couldn't create world directory!");
-                        String files[] = source.list();
-                        for (String file : files) {
-                            File srcFile = new File(source, file);
-                            File destFile = new File(target, file);
-                            copyFileStructure(srcFile, destFile);
-                        }
-                    } else {
-                        InputStream in = new FileInputStream(source);
-                        OutputStream out = new FileOutputStream(target);
-                        byte[] buffer = new byte[1024];
-                        int length;
-                        while ((length = in.read(buffer)) > 0)
-                            out.write(buffer, 0, length);
-                        in.close();
-                        out.close();
-                    }
-                }
-            } catch (IOException e) {
-                throw new UnableToCloneException(e);
-            }
-        }
+        /*
+                    bukkitWorld.setAutoSave(false);
+            bukkitWorld.setGameRuleValue("doDaylightCycle", "false");
+            bukkitWorld.setGameRuleValue("doWeatherCycle", "false");
+            bukkitWorld.setDifficulty(Difficulty.PEACEFUL);
+            bukkitWorld.setTime(1000);
+            bukkitWorld.setGameRuleValue("announceAdvancements","false");
+            bukkitWorld.setThundering(false);
+            bukkitWorld.setStorm(false);
+            bukkitWorld.setWeatherDuration(-1);
+         */
 
         public GameMap getBase() {
             return base;
@@ -306,6 +278,7 @@ public class GameMap {
         public ArrayList<MapInjection> getCustomInjections() {
             return customInjections;
         }
+
 
         public static class UnableToCloneException extends Exception {
 

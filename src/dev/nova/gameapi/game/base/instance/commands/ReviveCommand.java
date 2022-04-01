@@ -1,12 +1,15 @@
 package dev.nova.gameapi.game.base.instance.commands;
 
-import dev.nova.gameapi.GAPIPlugin;
+import dev.nova.gameapi.GameAPI;
+import dev.nova.gameapi.game.base.instance.GameInstance;
 import dev.nova.gameapi.utils.api.gui.ObjectBoundGUI;
 import dev.nova.gameapi.utils.api.gui.item.ClickAction;
 import dev.nova.gameapi.utils.api.gui.item.Item;
 import dev.nova.gameapi.game.base.instance.team.Team;
 import dev.nova.gameapi.game.base.instance.team.TeamGameInstance;
 import dev.nova.gameapi.game.player.GamePlayer;
+import org.bukkit.ChatColor;
+import org.bukkit.GameMode;
 import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -41,11 +44,11 @@ public class ReviveCommand implements CommandExecutor {
         }
 
         if(player.getGame() instanceof TeamGameInstance){
-            ObjectBoundGUI teamsGui = new ObjectBoundGUI("Which team do you want to be in?",6, GAPIPlugin.getPlugin(GAPIPlugin.class)) {};
+            ObjectBoundGUI teamsGui = new ObjectBoundGUI("Which team do you want to be in?",6, GameAPI.getPlugin(GameAPI.class)) {};
 
             int i = 0;
             for(Team team : ((TeamGameInstance) player.getGame()).getTeams()){
-                ItemStack teamItemStack = new ItemStack(Material.TERRACOTTA,1,(byte) team.getColor().ordinal());
+                ItemStack teamItemStack = new ItemStack(Material.STAINED_CLAY,1,(byte) team.getColor().ordinal());
                 ItemMeta meta = teamItemStack.getItemMeta();
 
                 ArrayList<String> lore = new ArrayList<>(List.of(new String[]{
@@ -68,12 +71,16 @@ public class ReviveCommand implements CommandExecutor {
                 teamItem.setClickAction(new ClickAction() {
                     @Override
                     public void onClick(InventoryClickEvent event) {
-                        player.getGame().getPlayers().add(player);
-                        player.getGame().getSpectators().remove(player);
-                        team.addPlayer(player);
-                        player.getPlayer().teleport(team.getPlayers().get(0).getPlayer());
-                        playerB.sendMessage("§aYou have been revived!");
+                        if(player.getGame().resetPlayer(player)) {
+                            GameInstance.normalReset(player, GameMode.SURVIVAL);
+                            player.getGame().getPlayers().add(player);
+                            player.getGame().getSpectators().remove(player);
+                            team.addPlayer(player);
 
+                            playerB.sendMessage("§aYou have been revived!");
+                        }else{
+                            playerB.sendMessage(ChatColor.RED+"Unable to reset you properly.");
+                        }
                     }
                 });
 

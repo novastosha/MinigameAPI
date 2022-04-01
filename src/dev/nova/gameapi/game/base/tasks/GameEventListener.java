@@ -11,7 +11,6 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
-import org.bukkit.event.entity.EntityAirChangeEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
@@ -21,7 +20,6 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
-import java.util.function.Consumer;
 
 public class GameEventListener extends GlobalEventListener {
 
@@ -31,7 +29,7 @@ public class GameEventListener extends GlobalEventListener {
 
     @Override
     protected void onEvent(Event event) {
-        if (event instanceof ChunkLoadEvent || event instanceof ChunkUnloadEvent || event instanceof EntityAirChangeEvent) {
+        if (event instanceof ChunkLoadEvent || event instanceof ChunkUnloadEvent) {
             return;
         }
 
@@ -46,12 +44,12 @@ public class GameEventListener extends GlobalEventListener {
 
                             if (deathEvent.getEntity().getKiller() == null) {
                                 if (instance.getPlayers().contains(victim)) {
-                                    instance.onEvent(event);
+                                    callEvent(instance,event);
                                 }
                             } else {
                                 GamePlayer killer = GamePlayer.getPlayer(deathEvent.getEntity().getKiller());
                                 if (instance.getPlayers().contains(victim) && instance.getPlayers().contains(killer)) {
-                                    instance.onEvent(event);
+                                    callEvent(instance,event);
 
                                 }
                             }
@@ -66,7 +64,7 @@ public class GameEventListener extends GlobalEventListener {
                             }
 
                             if(players.containsAll(clickEvent.getViewers())){
-                                instance.onEvent(clickEvent);
+                                callEvent(instance,clickEvent);
                             }
                             continue;
                         }
@@ -87,7 +85,7 @@ public class GameEventListener extends GlobalEventListener {
                                 }
 
                                 if(players.containsAll(inventory.getViewers())){
-                                    instance.onEvent(event);
+                                    callEvent(instance,event);
                                     continue;
                                 }
                             }
@@ -96,7 +94,7 @@ public class GameEventListener extends GlobalEventListener {
 
                             if (world != null) {
                                 if (instance.getMap() != null && world == instance.getMap().getBukkitWorld()) {
-                                    instance.onEvent(event);
+                                    callEvent(instance,event);
                                     continue;
                                 }
                             }
@@ -106,7 +104,7 @@ public class GameEventListener extends GlobalEventListener {
                                 GamePlayer gamePlayer = GamePlayer.getPlayer(player);
 
                                 if (instance.getPlayers().contains(gamePlayer)) {
-                                    instance.onEvent(event);
+                                    callEvent(instance,event);
                                     continue;
                                 }
                             }
@@ -116,22 +114,30 @@ public class GameEventListener extends GlobalEventListener {
                             if (entity != null) {
                                 if (!(entity instanceof Player)) {
                                     if (instance.getMap() != null && instance.getMap().getBukkitWorld().getEntities().contains(entity)) {
-                                        instance.onEvent(event);
+                                        callEvent(instance,event);
                                         continue;
                                     }
                                 } else {
                                     GamePlayer player1 = GamePlayer.getPlayer((Player) entity);
                                     if (instance.getPlayers().contains(player1)) {
-                                        instance.onEvent(event);
+                                        callEvent(instance,event);
                                     }
                                 }
                             }
                         } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException ignored) {
-                            instance.onEvent(event);
+                            callEvent(instance,event);
                         }
                     }
                 }
             }
+        }
+    }
+
+    private void callEvent(GameInstance instance, Event event) {
+        if(instance.getGameState().equals(GameState.AFTER_END)){
+            instance.afterEnd(event);
+        }else{
+            instance.onEvent(event);
         }
     }
 }

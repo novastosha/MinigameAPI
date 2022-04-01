@@ -22,3 +22,8 @@ enable-schematic-commands: true
 
 #Poll system
 maximum-poll-answers: 5
+
+#After End
+after-end:
+  enabled: true
+  duration: 30

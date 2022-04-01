@@ -11,6 +11,6 @@ public class GameEndEvent extends GameEvent {
 
     @Override
     public void onEvent() {
-        instance.onEnd();
+        instance.onEnd(false);
     }
 }

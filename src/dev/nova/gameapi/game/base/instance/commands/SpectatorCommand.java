@@ -1,6 +1,8 @@
 package dev.nova.gameapi.game.base.instance.commands;
 
+import dev.nova.gameapi.game.base.instance.GameInstance;
 import dev.nova.gameapi.game.player.GamePlayer;
+import org.bukkit.GameMode;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -27,6 +29,7 @@ public class SpectatorCommand implements CommandExecutor {
             return true;
         }
 
+        GameInstance.normalReset(player, GameMode.SPECTATOR);
         player.getGame().switchToSpectator(player);
         playerB.sendMessage("§aYou are now a spectator");
 

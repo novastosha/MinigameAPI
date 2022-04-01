@@ -112,7 +112,6 @@ public class Schematic {
             }
 
             configuration.set("schematic.blocks." + toSave + ".type", block.getType().name());
-            configuration.set("schematic.blocks." + toSave + ".data", block.getState().getBlockData().getAsString());
             try {
                 configuration.save(file);
             } catch (IOException e) {
@@ -167,8 +166,6 @@ public class Schematic {
 
     public static void pasteSchematic(Location center, Schematic schematic) {
 
-        center = center.toCenterLocation();
-
         List<String> locations = new ArrayList<>(schematic.getLocations().keySet());
         List<BlockDataHolder> values = new ArrayList<>(schematic.getLocations().values());
 
@@ -215,7 +212,6 @@ public class Schematic {
 
             Location pasteLocation = new Location(center.getWorld(), (center.getBlockX() + pasteX), (center.getBlockY() + pasteY), (center.getBlockZ() + pasteZ));
             pasteLocation.getWorld().getBlockAt(pasteLocation).setType(values.get(index).material());
-            pasteLocation.getWorld().getBlockAt(pasteLocation).getState().setBlockData(Bukkit.createBlockData(values.get(index).data()));
             center = new Location(center.getWorld(), center.getBlockX(), center.getBlockY(), center.getBlockZ());
 
             index++;
